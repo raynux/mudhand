@@ -1,0 +1,15 @@
+{
+  "name": "mudhand",
+  "version": "1.0.0",
+  "main": "mudhand.js",
+  "repository": "https://github.com/raynux/mudhand",
+  "author": "Ray Sakai",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "axios": "^0.18.0",
+    "fs-extra": "^5.0.0",
+    "lodash": "^4.17.10",
+    "moment": "^2.22.1"
+  }
+}
