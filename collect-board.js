@@ -6,6 +6,7 @@ const moment = require('moment')
 
 const FETCH_FREQUENCY = 5000
 const HISTRICAL_DIR = './data'
+const MAX_BOARD_COUNT = 500
 
 const request = axios.create({
   baseURL: 'https://api.bitflyer.jp/v1',
@@ -13,13 +14,13 @@ const request = axios.create({
   headers: {}
 })
 
-function ladderDiff(base, ladders) {
+function ladderDiff(base, ladders, max) {
   return _(ladders)
-    // .take(max)
+    .take(max)
     .transform((r, l) => {
       r.push({
-        price: l.price,
-        diff: l.price / base,
+        // price: l.price,
+        diff: _.round(l.price / base, 6),
         size: l.size
       })
       return r
@@ -34,8 +35,8 @@ async function fetchBoard() {
   return {
     price,
     ts: moment().valueOf(),
-    bids: ladderDiff(price, resp.data.bids),
-    asks: ladderDiff(price, resp.data.asks)
+    bids: ladderDiff(price, resp.data.bids, MAX_BOARD_COUNT),
+    asks: ladderDiff(price, resp.data.asks, MAX_BOARD_COUNT)
   }
 }
 
