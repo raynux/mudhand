@@ -47,9 +47,12 @@ async function main() {
   let seqNo = 0
   const timer = setInterval(async () => {
     try {
-      const data = JSON.stringify(await fetchBoard())
+      const boardData = await fetchBoard()
+      boardData.seqNo = seqNo
+
+      const boardJSON = JSON.stringify(boardData)
       const seqStr = `00000${seqNo}`.slice(-6)
-      await fs.writeFile(`${BASE_DIR}/${seqStr}.json`, data)
+      await fs.writeFile(`${BASE_DIR}/${seqStr}.json`, boardJSON)
 
       console.log(`SEQ NO [ ${seqNo} ] : ${moment().format('YYYY-MM-DD HH:mm:ss')}`)
       seqNo += 1
