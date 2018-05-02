@@ -3,7 +3,7 @@ data/*/*.json
 dist/
 .envrc
 .cache
-db/db.sqlite
-db/market.db-journal
+*.sqlite
+*.db-journal
 key.json
 yarn-error.log
