@@ -1,4 +1,9 @@
 node_modules
 data/*/*.json
-historical/*
+dist/
 .envrc
+.cache
+db/db.sqlite
+db/market.db-journal
+key.json
+yarn-error.log
