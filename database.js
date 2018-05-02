@@ -4,7 +4,11 @@ const sequelize = new Sequelize('database', 'username', 'password', {
   dialect: 'sqlite',
   storage: './db/db.sqlite',
   operatorsAliases: Sequelize.Op,
-  logging: false
+  logging: false,
+  pool: {
+    max: 1,
+    min: 0
+  }
 })
 
 const Board = sequelize.define('board', {
@@ -14,6 +18,7 @@ const Board = sequelize.define('board', {
   seqStartAt: Sequelize.DATE,
   bids: Sequelize.JSON,
   asks: Sequelize.JSON,
+  future: Sequelize.INTEGER,
 }, {
   timestamps: false
 })
