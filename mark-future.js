@@ -8,11 +8,11 @@ const {Op} = Sequelize
 const FUTURE_TYPE = {
   STABLE: 0,
   RAISE: 1,
-  DROP: -1
+  DROP: 2 
 }
 
-const FUTURE_RANGE = moment.duration(30, 'minutes')
-const THRESHOLD = 0.005
+const FUTURE_RANGE = moment.duration(10, 'minutes')
+const THRESHOLD = 0.003
 
 async function main() {
   // await sequelize.sync()
