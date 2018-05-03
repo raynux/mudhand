@@ -64,9 +64,7 @@ async function main() {
       sts(boardJSON)
         .pipe(file.createWriteStream({ gzip: true }))
         .on('error', () => {
-          console.error(`fetchBoard() failed at SEQ ${seqNo}`)
-          clearInterval(timer)
-          main() // restart
+          console.error(`writing error at SEQ ${seqNo}`)
         })
         .on('finish', () => {
           console.log(`SEQ NO [ ${seqStr} ] : ${moment().format('YYYY-MM-DD HH:mm:ss')}`)

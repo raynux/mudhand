@@ -11,7 +11,7 @@ const {sequelize, Board} = require('./database')
 const ROOT_DIR = 'board'
 
 async function main() {
-  const queue = new Queue(1, Infinity)
+  const queue = new Queue(5, Infinity)
   await sequelize.sync()
 
   storage.bucket('mudhand')
@@ -19,14 +19,15 @@ async function main() {
       prefix: ROOT_DIR
     })
     .on('error', console.error)
-    .on('data', async (file) => {
+    .on('data', (file) => {
       if(!file.name.match(/\.json$/)) { return }
-      try {
-        const [buf] = await file.download()
-        const rec = JSON.parse(buf.toString())
+      queue.add(async () => {
+        try {
+          console.log(`QUEUE [ ${queue.getQueueLength()} ] : ${file.name}`)
 
-        queue.add(() => {
-          console.log(`QUEUE [ ${queue.getQueueLength()}] : ${file.name}`)
+          const [buf] = await file.download()
+          const rec = JSON.parse(buf.toString())
+
           return Board.create({
             timestamp: rec.ts,
             price: rec.price,
@@ -35,12 +36,12 @@ async function main() {
             bids: rec.bids,
             asks: rec.asks
           })
-        })
-      }
-      catch(e) {
-        console.error(e)
-        console.error(file.name)
-      }
+        }
+        catch(e) {
+          console.error(e)
+          console.error(file.name)
+        }
+      })
     })
 }
 main()
