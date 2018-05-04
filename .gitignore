@@ -1,5 +1,7 @@
 node_modules
+logs/*
 data/*/*.json
+model/*
 feed/*
 dist/
 .envrc

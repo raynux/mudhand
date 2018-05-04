@@ -4,8 +4,9 @@ from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Flatten, Dropout, Conv1D, MaxPooling1D, Merge
 from keras.layers.merge import concatenate
 from keras.utils import to_categorical
+from keras.callbacks import EarlyStopping, TensorBoard
 
-EPOCHS=1
+EPOCHS=2
 
 def get_batch_size():
     with open("./feed/count") as f:
@@ -49,41 +50,31 @@ print(train_X_bids.shape)
 print(train_X_asks.shape)
 
 
-# model = Sequential()
-# model.add(Conv1D(128, 8, strides=1, padding='same', input_shape=(train_X.shape[1], train_X.shape[2]), activation='relu'))
-# model.add(MaxPooling1D(2, padding='same'))
-# model.add(Conv1D(64, 8, strides=1, padding='same', activation='relu'))
-# model.add(Flatten())
-# model.add(Dense(units=32, activation='tanh'))
-# model.add(Dense(units=3, activation='softmax'))
-# model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
-# model.summary()
-
 model_bid = Sequential()
 model_bid.add(Conv1D(32, 8, strides=1, padding='same', input_shape=(train_X_bids.shape[1], train_X_bids.shape[2]), activation='relu'))
 model_bid.add(MaxPooling1D(2, padding='same'))
-model_bid.add(Dropout(0.1))
-model_bid.add(Conv1D(64, 8, strides=1, padding='same', activation='relu'))
-model_bid.add(MaxPooling1D(2, padding='same'))
-model_bid.add(Dropout(0.2))
+model_bid.add(Dropout(0.5))
+# model_bid.add(Conv1D(64, 8, strides=1, padding='same', activation='relu'))
+# model_bid.add(MaxPooling1D(2, padding='same'))
+# model_bid.add(Dropout(0.2))
 model_bid.add(Flatten())
-model_bid.add(Dense(units=64, activation='relu'))
+model_bid.add(Dense(units=32, activation='relu'))
 
 model_ask = Sequential()
 model_ask.add(Conv1D(32, 8, strides=1, padding='same', input_shape=(train_X_asks.shape[1], train_X_asks.shape[2]), activation='relu'))
 model_ask.add(MaxPooling1D(2, padding='same'))
-model_ask.add(Dropout(0.1))
-model_ask.add(Conv1D(64, 8, strides=1, padding='same', activation='relu'))
-model_ask.add(MaxPooling1D(2, padding='same'))
-model_ask.add(Dropout(0.2))
+model_ask.add(Dropout(0.5))
+# model_ask.add(Conv1D(64, 8, strides=1, padding='same', activation='relu'))
+# model_ask.add(MaxPooling1D(2, padding='same'))
+# model_ask.add(Dropout(0.2))
 model_ask.add(Flatten())
-model_ask.add(Dense(units=64, activation='relu'))
+model_ask.add(Dense(units=32, activation='relu'))
 
 merged = Sequential()
 merged.add(Merge([model_bid, model_ask], mode='concat'))
-merged.add(Dense(units=64, activation='relu'))
-merged.add(Dropout(0.3))
-merged.add(Dense(units=32, activation='relu'))
+# merged.add(Dense(units=64, activation='relu'))
+merged.add(Dropout(0.5))
+merged.add(Dense(units=16, activation='relu'))
 merged.add(Dense(units=3, activation='softmax'))
 
 merged.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
@@ -92,5 +83,8 @@ model_ask.summary()
 model_bid.summary()
 merged.summary()
 
-merged.fit([train_X_bids, train_X_asks], train_Y, validation_split=0.3, epochs=EPOCHS)
+merged.fit([train_X_bids, train_X_asks], train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
+    EarlyStopping(monitor='val_loss'),
+    TensorBoard(log_dir='./logs', histogram_freq=0)
+])
 merged.save('./model/v1')
