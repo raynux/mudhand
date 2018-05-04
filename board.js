@@ -4,12 +4,30 @@ const axios = require('axios')
 const sts = require('string-to-stream')
 const fs = require('fs-extra')
 const moment = require('moment')
+const argv = require('yargs')
+  // .usage('Usage: $0 --appid N')
+  .options('f', {
+    alias: 'frequency',
+    nargs: 1,
+    default: 5000,
+  })
+  .options('s', {
+    alias: 'save-to-gcs',
+    nargs: 0,
+    default: false,
+  })
+  .options('t', {
+    alias: 'trade',
+    nargs: 0,
+    default: false,
+  })
+  // .demandOption([''])
+  .argv
 
 const storage = fs.pathExistsSync('./key.json') ?
   require('@google-cloud/storage')({ keyFilename: './key.json' }) :
   require('@google-cloud/storage')()
 
-const FETCH_FREQUENCY = 5000
 const ROOT_DIR = 'board'
 const MAX_BOARD_COUNT = 500
 
@@ -44,10 +62,29 @@ async function fetchBoard() {
   }
 }
 
+function saveToGCS(boardData) {
+  const BASE_DIR = `${ROOT_DIR}/${boardData.startAt}`
+  const boardJSON = JSON.stringify(boardData)
+  const seqStr = `00000${boardData.seqNo}`.slice(-6)
+
+  const file = bucket.file(`${BASE_DIR}/${seqStr}.json`)
+
+  sts(boardJSON)
+    .pipe(file.createWriteStream({ gzip: true }))
+    .on('error', () => {
+      console.error(`writing error at SEQ ${boardData.seqNo}`)
+    })
+    .on('finish', () => {
+      console.log(`SEQ NO [ ${seqStr} ] : ${moment().format('YYYY-MM-DD HH:mm:ss')}`)
+    })
+}
+
+function trade(boardData) {
+  console.log(boardData)
+}
+
 async function main() {
   const startAt = moment().format('YYYYMMDD-HHmmss')
-  const BASE_DIR = `${ROOT_DIR}/${startAt}`
-  // await fs.mkdir(BASE_DIR)
 
   let seqNo = 0
   const timer = setInterval(async () => {
@@ -55,27 +92,15 @@ async function main() {
       const boardData = await fetchBoard()
       Object.assign(boardData, {seqNo, startAt})
 
-      const boardJSON = JSON.stringify(boardData)
-      const seqStr = `00000${seqNo}`.slice(-6)
-
-      // await bucket.file(`${BASE_DIR}/${seqStr}.json`).save(boardJSON)
-      const file = bucket.file(`${BASE_DIR}/${seqStr}.json`)
-
-      sts(boardJSON)
-        .pipe(file.createWriteStream({ gzip: true }))
-        .on('error', () => {
-          console.error(`writing error at SEQ ${seqNo}`)
-        })
-        .on('finish', () => {
-          console.log(`SEQ NO [ ${seqStr} ] : ${moment().format('YYYY-MM-DD HH:mm:ss')}`)
-        })
+      if(argv.s) { saveToGCS(boardData) }
+      if(argv.t) { trade(boardData) }
       seqNo += 1
     }
     catch(e) {
-      console.error(`fetchBoard() failed at SEQ ${seqNo}`)
+      console.error(`something went wrong at SEQ ${seqNo}`)
       clearInterval(timer)
       main() // restart
     }
-  }, FETCH_FREQUENCY)
+  }, argv.f)
 }
 main()

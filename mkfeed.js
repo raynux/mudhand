@@ -1,7 +1,8 @@
 'use strict'
 const _ = require('lodash')
 const fs = require('fs-extra')
-const {Sequelize, Board} = require('./database')
+const {Board} = require('./database')
+// const {Sequelize, Board} = require('./database')
 // const {Op} = Sequelize;
 
 const FEED_DIR = './feed'
@@ -42,7 +43,7 @@ async function main() {
     asksWS.write(`${JSON.stringify(asks)}\n`)
 
     stats[future] += 1
-    stats[count] += 1
+    stats.count += 1
   }
 
   [futureWS, bidsWS, asksWS].forEach((ws) => ws.end())

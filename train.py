@@ -7,7 +7,7 @@ from keras.layers.merge import concatenate
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
 
-EPOCHS=2
+EPOCHS=5
 
 def get_batch_size():
     with open("./feed/count") as f:
