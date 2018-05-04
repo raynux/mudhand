@@ -1,7 +1,7 @@
 import numpy as np
 import json
-from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Flatten, Dropout, Conv1D, MaxPooling1D, Merge
+from keras.models import  Model
+from keras.layers import Input, Dense, Flatten, Dropout, Conv1D, MaxPooling1D
 from keras.layers.merge import concatenate
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
@@ -50,40 +50,32 @@ print(train_X_bids.shape)
 print(train_X_asks.shape)
 
 
-model_bid = Sequential()
-model_bid.add(Conv1D(32, 8, strides=1, padding='same', input_shape=(train_X_bids.shape[1], train_X_bids.shape[2]), activation='relu'))
-model_bid.add(MaxPooling1D(2, padding='same'))
-model_bid.add(Dropout(0.5))
-# model_bid.add(Conv1D(64, 8, strides=1, padding='same', activation='relu'))
-# model_bid.add(MaxPooling1D(2, padding='same'))
-# model_bid.add(Dropout(0.2))
-model_bid.add(Flatten())
-model_bid.add(Dense(units=32, activation='relu'))
+bids_layer_in = Input(shape=(train_X_bids.shape[1], train_X_bids.shape[2]))
+bids_layer = Conv1D(32, 8, strides=1, padding='same', activation='relu')(bids_layer_in)
+bids_layer = MaxPooling1D(2, padding='same')(bids_layer)
+bids_layer = Dropout(0.5)(bids_layer)
+bids_layer = Flatten()(bids_layer)
+bids_layer = Dense(units=32, activation='relu')(bids_layer)
 
-model_ask = Sequential()
-model_ask.add(Conv1D(32, 8, strides=1, padding='same', input_shape=(train_X_asks.shape[1], train_X_asks.shape[2]), activation='relu'))
-model_ask.add(MaxPooling1D(2, padding='same'))
-model_ask.add(Dropout(0.5))
-# model_ask.add(Conv1D(64, 8, strides=1, padding='same', activation='relu'))
-# model_ask.add(MaxPooling1D(2, padding='same'))
-# model_ask.add(Dropout(0.2))
-model_ask.add(Flatten())
-model_ask.add(Dense(units=32, activation='relu'))
+asks_layer_in = Input(shape=(train_X_asks.shape[1], train_X_asks.shape[2]))
+asks_layer = Conv1D(32, 8, strides=1, padding='same', activation='relu')(asks_layer_in)
+asks_layer = MaxPooling1D(2, padding='same')(asks_layer)
+asks_layer = Dropout(0.5)(asks_layer)
+asks_layer = Flatten()(asks_layer)
+asks_layer = Dense(units=32, activation='relu')(asks_layer)
 
-merged = Sequential()
-merged.add(Merge([model_bid, model_ask], mode='concat'))
-# merged.add(Dense(units=64, activation='relu'))
-merged.add(Dropout(0.5))
-merged.add(Dense(units=16, activation='relu'))
-merged.add(Dense(units=3, activation='softmax'))
+merged = concatenate([bids_layer, asks_layer])
+merged = Dropout(0.5)(merged)
+merged = Dense(units=16, activation='relu')(merged)
 
-merged.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
+prediction = Dense(units=3, activation='softmax')(merged)
 
-model_ask.summary()
-model_bid.summary()
-merged.summary()
+model = Model(inputs=[bids_layer_in, asks_layer_in], outputs=prediction)
+model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 
-merged.fit([train_X_bids, train_X_asks], train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
+model.summary()
+
+model.fit([train_X_bids, train_X_asks], train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
     EarlyStopping(monitor='val_loss'),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
