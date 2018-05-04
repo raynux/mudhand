@@ -1,5 +1,4 @@
 'use strict'
-const _ = require('lodash')
 const fs = require('fs-extra')
 const moment = require('moment')
 const Queue = require('promise-queue')
