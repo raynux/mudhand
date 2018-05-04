@@ -1,5 +1,6 @@
-import numpy as np
 import json
+import datetime
+import numpy as np
 from keras.models import  Model
 from keras.layers import Input, Dense, Flatten, Dropout, Conv1D, MaxPooling1D
 from keras.layers.merge import concatenate
@@ -79,4 +80,4 @@ model.fit([train_X_bids, train_X_asks], train_Y, validation_split=0.3, epochs=EP
     EarlyStopping(monitor='val_loss'),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
-merged.save('./model/v1')
+model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))
