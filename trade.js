@@ -12,12 +12,7 @@ const argv = require('yargs')
   .options('f', {
     alias: 'frequency',
     nargs: 1,
-    default: 5000,
-  })
-  .options('t', {
-    alias: 'trade',
-    nargs: 0,
-    default: false,
+    default: 10000,
   })
   .options('p', {
     alias: 'prediction-server',
@@ -34,6 +29,23 @@ const argv = require('yargs')
 
 const {BF_APIKEY, BF_SECRET} = process.env
 const pdReq = axios.create({ baseURL: argv.p })
+
+async function isReadyToOrder() {
+  const timestamp = Date.now().toString()
+  const bfReqPath = `/v1/me/getchildorders?product_code=${PRODUCT_CODE}&child_order_state=ACTIVE`
+  const text = `${timestamp}GET${bfReqPath}`
+  const sign = crypto.createHmac('sha256', BF_SECRET).update(text).digest('hex')
+
+  const {data} = await bfReq.get(bfReqPath, {
+    headers: {
+      'ACCESS-KEY': BF_APIKEY,
+      'ACCESS-TIMESTAMP': timestamp,
+      'ACCESS-SIGN': sign
+    }
+  })
+
+  return _.isEmpty(data)
+}
 
 function mkOrderBody(prediction, boardData) {
   const priceDiff = _.round(boardData.price * MARGIN_THRESHOLD)
@@ -105,46 +117,42 @@ async function trade(boardData) {
   const {prediction} = data
 
   if(prediction != FUTURE_TYPE.STABLE) {
+    if(!await isReadyToOrder()) {
+      console.error(`An order already placed : [ ${prediction} ] ${moment().format()}`)
+      return
+    }
+
     const timestamp = Date.now().toString()
     const bfReqPath = '/v1/me/sendparentorder'
     const body = mkOrderBody(prediction, boardData)
     const text = `${timestamp}POST${bfReqPath}${JSON.stringify(body)}`
     const sign = crypto.createHmac('sha256', BF_SECRET).update(text).digest('hex')
 
+    console.log(`====== PLACING AN ORDER [ ${prediction} ] =======`)
     console.log(`Current Price : ${boardData.price}`)
     console.log(body)
 
-    try {
-      const resp = await bfReq.post(bfReqPath, body, {
-        headers: {
-          'ACCESS-KEY': BF_APIKEY,
-          'ACCESS-TIMESTAMP': timestamp,
-          'ACCESS-SIGN': sign
-        }
-      })
-      console.log('====== DONE =======')
-      console.log(resp.data)
-    }
-    catch(e) {
-      console.log('====== ERROR =======')
-      console.error(e.response.data)
-    }
+    const resp = await bfReq.post(bfReqPath, body, {
+      headers: {
+        'ACCESS-KEY': BF_APIKEY,
+        'ACCESS-TIMESTAMP': timestamp,
+        'ACCESS-SIGN': sign
+      }
+    })
+    console.log('====== DONE =======')
+    console.log(resp.data)
   }
 }
 
 async function main() {
-  const startAt = moment().format('YYYYMMDD-HHmmss')
-
-  let seqNo = 0
   const timer = setInterval(async () => {
     try {
       const boardData = await fetchBoard()
-      Object.assign(boardData, {seqNo, startAt})
       trade(boardData)
-      seqNo += 1
     }
     catch(e) {
-      console.error(`something went wrong at SEQ ${seqNo}`)
+      console.error(e.response.data)
+      console.error('something went wrong')
       clearInterval(timer)
       main() // restart
     }
