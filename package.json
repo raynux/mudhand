@@ -9,7 +9,7 @@
   "scripts": {
     "combo": "node import && node mark-future && node mkfeed && python train.py",
     "convert2js": "tensorflowjs_converter --input_format keras models/model.h5 jsmodel",
-    "lint": "eslint *.js"
+    "lint": "eslint *.js libs/*.js"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^0.10.3",
