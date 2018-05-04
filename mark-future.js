@@ -4,15 +4,7 @@ const moment = require('moment')
 const Queue = require('promise-queue')
 const {Sequelize, Board} = require('./database')
 const {Op} = Sequelize
-
-const FUTURE_TYPE = {
-  STABLE: 0,
-  RAISE: 1,
-  DROP: 2
-}
-
-const FUTURE_RANGE = moment.duration(10, 'minutes')
-const THRESHOLD = 0.003
+const {FUTURE_TYPE, FUTURE_RANGE, MARGIN_THRESHOLD} = require('./libs/common')
 
 async function main() {
   // await sequelize.sync()
@@ -46,12 +38,12 @@ async function main() {
 
       let futureType = FUTURE_TYPE.STABLE
       priceDiffSeq.forEach((d) => {
-        if(d >= THRESHOLD) {
+        if(d >= MARGIN_THRESHOLD) {
           // console.log('RAISE', _.round(d, 6))
           futureType = FUTURE_TYPE.RAISE
           return
         }
-        if(d <= -THRESHOLD) {
+        if(d <= -MARGIN_THRESHOLD) {
           // console.log('DROP', _.round(d, 6))
           futureType = FUTURE_TYPE.DROP
           return

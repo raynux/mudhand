@@ -11,7 +11,7 @@ def predict():
     data = request.get_json()
 
     bids = [data['bids']]
-    asks = [data['bids']]
+    asks = [data['asks']]
 
     bids = np.array(bids)
     asks = np.array(asks)
