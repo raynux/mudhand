@@ -118,7 +118,7 @@ async function trade(boardData) {
 
   if(prediction != FUTURE_TYPE.STABLE) {
     if(!await isReadyToOrder()) {
-      console.error(`An order already placed : [ ${prediction} ] ${moment().format()}`)
+      console.error(`An order is already being placed : [ ${prediction} ] ${moment().format()}`)
       return
     }
 
