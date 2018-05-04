@@ -7,6 +7,12 @@
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
+    "predict": "parcel web/index.html -d public",
+    "import": "node import",
+    "mark-future": "node mark-future",
+    "mkfeed": "node mkfeed",
+    "train": "python3 train.py",
+    "convert2js": "tensorflowjs_converter --input_format keras models/model.h5 jsmodel",
     "lint": "eslint *.js"
   },
   "dependencies": {

@@ -2,6 +2,7 @@ node_modules
 logs/*
 data/*/*.json
 models/*.h5
+public/*
 feed/*
 dist/
 .envrc
