@@ -1,55 +1,81 @@
 'use strict'
 const _ = require('lodash')
 const fs = require('fs-extra')
-const {Board} = require('./database')
-// const {Sequelize, Board} = require('./database')
-// const {Op} = Sequelize;
+const moment = require('moment')
+const {Sequelize, Board} = require('./libs/database')
+const {Op} = Sequelize;
 
 const FEED_DIR = './feed'
-const FEED_Y = `${FEED_DIR}/future`
-const FEED_X_BIDS = `${FEED_DIR}/bids`
-const FEED_X_ASKS = `${FEED_DIR}/asks`
+const FEED_PATH = `${FEED_DIR}/data`
 const FEED_COUNT = `${FEED_DIR}/count`
 
+const stats = {
+  total: 1,
+  0: 0,
+  1: 0,
+  2: 0
+}
+
+const timer = setInterval(() => {
+  console.log(stats)
+}, 5000)
+
+async function displayRecordCount() {
+  const total = await Board.count() 
+  const stable = await Board.count({where: {future: 0}})
+  const raise = await Board.count({where: {future: 1}})
+  const drop = await Board.count({where: {future: 2}})
+
+  console.log(`Total  : ${total}`)
+  console.log(`Stable : ${stable} [ ${_.round(stable / total, 2)} ]`)
+  console.log(`Raise  : ${raise} [ ${_.round(raise / total, 2)} ]`)
+  console.log(`Drop   : ${drop} [ ${_.round(drop / total, 2)} ]`)
+}
+
+async function getTimestampRange() {
+  const results = []
+  const min = moment(await Board.min('timestamp'))
+  const max = moment(await Board.max('timestamp'))
+  const cursor = min.clone()
+
+  while(cursor.isBefore(max)) {
+
+    results.push([
+      cursor.clone().toDate(),
+      cursor.add(1, 'hours').toDate()
+    ])
+  }
+  return results
+}
+
 async function main() {
-  const resp = await Board.findAll({
-    attributes: ['future', 'bids', 'asks'],
-    // limit: 1
-  })
+  await displayRecordCount()
+  const ranges = await getTimestampRange()
 
-  const futureWS = fs.createWriteStream(FEED_Y, {defaultEncoding: 'utf8'})
-  const bidsWS = fs.createWriteStream(FEED_X_BIDS, {defaultEncoding: 'utf8'})
-  const asksWS = fs.createWriteStream(FEED_X_ASKS, {defaultEncoding: 'utf8'})
+  const feedWS = fs.createWriteStream(FEED_PATH, {defaultEncoding: 'utf8'})
 
-  const stats = {
-    count: 1,
-    0: 0,
-    1: 0,
-    2: 0
+  for(const range of ranges) {
+    const resp = await Board.findAll({
+      attributes: ['future', 'bids', 'asks'],
+      where: {
+        timestamp: {
+          [Op.between]: range
+        }
+      }
+    })
+
+    for(const rec of resp) {
+      rec.dataValues.bids = _.reverse(rec.dataValues.bids)
+      feedWS.write(`${JSON.stringify(rec.dataValues)}\n`)
+      stats[rec.dataValues.future] += 1
+      stats.total += 1
+    }
   }
 
-  const timer = setInterval(() => {
-    console.log(stats)
-  }, 5000)
-
-  for(const rec of _.shuffle(resp)) {
-    const {future, bids, asks} = rec.dataValues
-
-    // reduce num of STABLE result
-    if((_.random(100) % 5 === 0) && future === 0) { continue }
-
-    futureWS.write(`${future}\n`)
-    bidsWS.write(`${JSON.stringify(bids)}\n`)
-    asksWS.write(`${JSON.stringify(asks)}\n`)
-
-    stats[future] += 1
-    stats.count += 1
-  }
-
-  [futureWS, bidsWS, asksWS].forEach((ws) => ws.end())
-  await fs.writeFile(FEED_COUNT, stats.count)
+  [feedWS].forEach((ws) => ws.end())
+  await fs.writeFile(FEED_COUNT, stats.total)
 
   clearInterval(timer)
-  console.log(`Finished ${stats}`)
+  process.exit(0)
 }
 main()

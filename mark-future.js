@@ -2,7 +2,7 @@
 const _ = require('lodash')
 const moment = require('moment')
 const Queue = require('promise-queue')
-const {Sequelize, Board} = require('./database')
+const {Sequelize, Board} = require('./libs/database')
 const {Op} = Sequelize
 const {FUTURE_TYPE, FUTURE_RANGE, MARGIN_THRESHOLD} = require('./libs/common')
 
@@ -56,7 +56,10 @@ async function main() {
 
   const timer = setInterval(async () => {
     console.log(`QUEUE [ ${queue.getQueueLength()} ]`)
-    if(queue.getQueueLength() === 0) { clearInterval(timer) }
+    if(queue.getQueueLength() === 0) {
+      clearInterval(timer)
+      process.exit(0)
+    }
   }, 2000)
 }
 main()

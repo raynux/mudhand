@@ -145,12 +145,12 @@ async function main() {
       const {data} = await pdReq.post('/predict', boardData)
       const {prediction} = data
 
-      if(prediction != FUTURE_TYPE.STABLE) {
-        if(argv.d) {
-          console.log(`[ ${prediction} ] ${moment().format()} }`)
-          return
-        }
+      if(argv.d) {
+        console.log(`[ ${prediction} ] ${moment().format()} }`)
+        return
+      }
 
+      if(prediction != FUTURE_TYPE.STABLE) {
         if(! await isReadyToOrder()) { return }
         trade(boardData, prediction)
       }

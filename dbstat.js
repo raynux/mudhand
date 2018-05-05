@@ -1,5 +1,5 @@
 'use strict'
-const {Sequelize, Board} = require('./database')
+const {Sequelize, Board} = require('./libs/database')
 const {Op} = Sequelize;
 
 [0, 1, 2].forEach(async (ft) => {

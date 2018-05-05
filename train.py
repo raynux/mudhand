@@ -7,76 +7,63 @@ from keras.layers.merge import concatenate
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
 
-EPOCHS=2
+EPOCHS=5
 
 def get_batch_size():
     with open("./feed/count") as f:
         return int(f.readline())
 
-def get_futures(batch_size, fname):
-    future = np.empty((batch_size))
+def load_feed(batch_size, fname):
+    futures = np.empty((batch_size))
+    ladders = np.empty((batch_size, 1000, 2))
+
     count = 0
     with open(fname) as f:
         line = f.readline()
         while line:
-            future[count] = int(line)
-            count +=1
-            line = f.readline()
-    return future
-
-def get_price_ladder(batch_size, fname):
-    ladder = np.empty((batch_size, 500, 2))
-    count = 0
-    with open("./feed/future") as f:
-        line = f.readline()
-        while line:
-            ladder[count] = json.loads(line)
+            rec = json.loads(line) 
+            futures[count] = rec['future']
+            ladders[count] = rec['asks'] + rec['bids']
             count += 1
             line = f.readline()
-    return ladder
+    return (futures, ladders)
 
 
 batch_size = get_batch_size()
 
-train_Y = get_futures(batch_size, "./feed/future")
+(train_Y, train_X_ladder) = load_feed(batch_size, './feed/data')
 train_Y = to_categorical(train_Y, num_classes=3)
 
-train_X_bids = get_price_ladder(batch_size, "./feed/bids")
-train_X_asks = get_price_ladder(batch_size, "./feed/asks")
-
-# train_X = train_X_bids
-
 print(train_Y.shape)
-print(train_X_bids.shape)
-print(train_X_asks.shape)
+print(train_X_ladder.shape)
 
 
-bids_layer_in = Input(shape=(train_X_bids.shape[1], train_X_bids.shape[2]))
-bids_layer = Conv1D(32, 8, strides=1, padding='same', activation='relu')(bids_layer_in)
-bids_layer = MaxPooling1D(2, padding='same')(bids_layer)
-bids_layer = Dropout(0.5)(bids_layer)
-bids_layer = Flatten()(bids_layer)
-bids_layer = Dense(units=32, activation='relu')(bids_layer)
+ladder_in = Input(shape=(train_X_ladder.shape[1], train_X_ladder.shape[2]))
+ladder = Conv1D(64, 8, strides=1, padding='same', activation='relu')(ladder_in)
+ladder = MaxPooling1D(2, padding='same')(ladder)
+ladder = Dropout(0.5)(ladder)
+ladder = Conv1D(64, 8, strides=1, padding='same', activation='relu')(ladder)
+ladder = MaxPooling1D(2, padding='same')(ladder)
+ladder = Dropout(0.5)(ladder)
 
-asks_layer_in = Input(shape=(train_X_asks.shape[1], train_X_asks.shape[2]))
-asks_layer = Conv1D(32, 8, strides=1, padding='same', activation='relu')(asks_layer_in)
-asks_layer = MaxPooling1D(2, padding='same')(asks_layer)
-asks_layer = Dropout(0.5)(asks_layer)
-asks_layer = Flatten()(asks_layer)
-asks_layer = Dense(units=32, activation='relu')(asks_layer)
+ladder = Flatten()(ladder)
+ladder = Dense(units=32, activation='relu')(ladder)
+ladder = Dropout(0.5)(ladder)
 
-merged = concatenate([bids_layer, asks_layer])
-merged = Dropout(0.5)(merged)
-merged = Dense(units=16, activation='relu')(merged)
+# merged = concatenate([bids_layer, asks_layer])
+# merged = Dropout(0.5)(merged)
+# merged = Dense(units=16, activation='relu')(merged)
+# prediction = Dense(units=3, activation='softmax')(merged)
+# model = Model(inputs=[bids_layer_in, asks_layer_in], outputs=prediction)
 
-prediction = Dense(units=3, activation='softmax')(merged)
+prediction = Dense(units=3, activation='softmax')(ladder)
 
-model = Model(inputs=[bids_layer_in, asks_layer_in], outputs=prediction)
+model = Model(inputs=ladder_in, outputs=prediction)
 model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 
 model.summary()
 
-model.fit([train_X_bids, train_X_asks], train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
+model.fit(train_X_ladder, train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
     EarlyStopping(monitor='val_loss'),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
