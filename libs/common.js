@@ -10,7 +10,7 @@ const FUTURE_TYPE = {
   RAISE: 1,
   DROP: 2
 }
-const FUTURE_RANGE = moment.duration(10, 'minutes') 
+const FUTURE_RANGE = moment.duration(5, 'minutes') 
 const MARGIN_THRESHOLD = 0.002
 
 const bfReq = axios.create({ baseURL: 'https://api.bitflyer.jp' })

@@ -6,12 +6,17 @@ const {mergeLadders} = require('./libs/common')
 const {Sequelize, Board} = require('./libs/database')
 const {Op} = Sequelize
 
+const TEST_RATIO = 4 // 25%
+
 const FEED_DIR = './feed'
-const FEED_PATH = `${FEED_DIR}/data`
-const FEED_COUNT = `${FEED_DIR}/count`
+const FEED_TRAIN = `${FEED_DIR}/train`
+const FEED_TRAIN_COUNT = `${FEED_DIR}/train_count`
+const FEED_TEST = `${FEED_DIR}/test`
+const FEED_TEST_COUNT = `${FEED_DIR}/test_count`
 
 const stats = {
-  total: 1,
+  trainTotal: 0,
+  testTotal: 0,
   0: 0,
   1: 0,
   2: 0
@@ -53,7 +58,8 @@ async function main() {
   await displayRecordCount()
   const ranges = await getTimestampRange()
 
-  const feedWS = fs.createWriteStream(FEED_PATH, {defaultEncoding: 'utf8'})
+  const trainWS = fs.createWriteStream(FEED_TRAIN, {defaultEncoding: 'utf8'})
+  const testWS = fs.createWriteStream(FEED_TEST, {defaultEncoding: 'utf8'})
 
   for(const range of ranges) {
     const resp = await Board.findAll({
@@ -67,15 +73,22 @@ async function main() {
 
     for(const rec of resp) {
       const data = mergeLadders(rec.dataValues)
-      feedWS.write(`${JSON.stringify(data)}\n`)
 
-      stats[data.future] += 1
-      stats.total += 1
+      if(_.random(1000) % TEST_RATIO === 0) {
+        testWS.write(`${JSON.stringify(data)}\n`)
+        stats.testTotal += 1
+      }
+      else {
+        trainWS.write(`${JSON.stringify(data)}\n`)
+        stats[data.future] += 1
+        stats.trainTotal += 1
+      }
     }
   }
 
-  [feedWS].forEach((ws) => ws.end())
-  await fs.writeFile(FEED_COUNT, stats.total)
+  [trainWS, testWS].forEach((ws) => ws.end())
+  await fs.writeFile(FEED_TRAIN_COUNT, stats.trainTotal)
+  await fs.writeFile(FEED_TEST_COUNT, stats.testTotal)
 
   clearInterval(timer)
   process.exit(0)
