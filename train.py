@@ -65,7 +65,7 @@ model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 model.summary()
 
 model.fit(train_X_ladder, train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
-    EarlyStopping(monitor='val_loss', patience=3),
+    EarlyStopping(monitor='loss', patience=3),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
 model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))
