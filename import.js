@@ -1,4 +1,5 @@
 'use strict'
+const _ = require('lodash')
 const fs = require('fs-extra')
 const moment = require('moment')
 const Queue = require('promise-queue')
@@ -10,8 +11,10 @@ const {sequelize, Board} = require('./database')
 const ROOT_DIR = 'board'
 
 async function main() {
-  const queue = new Queue(5, Infinity)
   await sequelize.sync()
+
+  const queue = new Queue(10, Infinity)
+  const batch = []
 
   storage.bucket('mudhand')
     .getFilesStream({
@@ -22,12 +25,11 @@ async function main() {
       if(!file.name.match(/\.json$/)) { return }
       queue.add(async () => {
         try {
-          console.log(`QUEUE [ ${queue.getQueueLength()} ] : ${file.name}`)
-
+          // console.log(`QUEUE [ ${queue.getQueueLength()} ] : ${file.name}`)
           const [buf] = await file.download()
           const rec = JSON.parse(buf.toString())
 
-          return Board.create({
+          batch.push({
             timestamp: rec.ts,
             price: rec.price,
             seqNo: rec.seqNo,
@@ -35,6 +37,7 @@ async function main() {
             bids: rec.bids,
             asks: rec.asks
           })
+
         }
         catch(e) {
           console.error(e)
@@ -42,5 +45,17 @@ async function main() {
         }
       })
     })
+
+  const pCount = 0
+  const timer = setInterval(async () => {
+    pCount += batch.length
+    await Board.bulkCreate(_.remove(batch))
+    console.log(`Processed [ ${pCount} ] | Batch-Insert Size ${batch.length} | DL Queue [ ${queue.getQueueLength()} ]`)
+
+    if(_.isEmpty(batch) && queue.getQueueLength() === 0) {
+      console.log('end')
+      clearInterval(timer)
+    }
+  }, 2000)
 }
 main()
