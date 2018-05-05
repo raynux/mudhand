@@ -46,14 +46,13 @@ async function main() {
       })
     })
 
-  const pCount = 0
+  let pCount = 0
   const timer = setInterval(async () => {
     pCount += batch.length
     await Board.bulkCreate(_.remove(batch))
     console.log(`Processed [ ${pCount} ] | Batch-Insert Size ${batch.length} | DL Queue [ ${queue.getQueueLength()} ]`)
 
     if(_.isEmpty(batch) && queue.getQueueLength() === 0) {
-      console.log('end')
       clearInterval(timer)
     }
   }, 2000)

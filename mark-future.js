@@ -9,7 +9,7 @@ const {FUTURE_TYPE, FUTURE_RANGE, MARGIN_THRESHOLD} = require('./libs/common')
 async function main() {
   // await sequelize.sync()
 
-  const queue = new Queue(1, Infinity)
+  const queue = new Queue(2, Infinity)
 
   const resp = await Board.findAll({
     attributes: ['id', 'price', 'timestamp'],
@@ -51,8 +51,12 @@ async function main() {
       })
 
       await rec.update({future: futureType})
-      console.log(`QUEUE [ ${queue.getQueueLength()} ]`)
     })
   })
+
+  const timer = setInterval(async () => {
+    console.log(`QUEUE [ ${queue.getQueueLength()} ]`)
+    if(queue.getQueueLength() === 0) { clearInterval(timer) }
+  }, 2000)
 }
 main()

@@ -4,11 +4,16 @@ const axios = require('axios')
 const crypto = require('crypto')
 const moment = require('moment')
 const {
-  FUTURE_TYPE, FUTURE_RANGE, MARGIN_THRESHOLD, PRODUCT_CODE,
+  FUTURE_TYPE, MARGIN_THRESHOLD, PRODUCT_CODE,
   bfReq, fetchBoard
 } = require('./libs/common')
 const argv = require('yargs')
   // .usage('Usage: $0 --appid N')
+  .options('d', {
+    alias: 'dry-run',
+    nargs: 0,
+    default: false
+  })
   .options('f', {
     alias: 'frequency',
     nargs: 1,
@@ -32,7 +37,7 @@ const pdReq = axios.create({ baseURL: argv.p })
 
 async function isReadyToOrder() {
   const timestamp = Date.now().toString()
-  const bfReqPath = `/v1/me/getchildorders?product_code=${PRODUCT_CODE}&child_order_state=ACTIVE`
+  const bfReqPath = `/v1/me/getpositions?product_code=${PRODUCT_CODE}`
   const text = `${timestamp}GET${bfReqPath}`
   const sign = crypto.createHmac('sha256', BF_SECRET).update(text).digest('hex')
 
@@ -106,49 +111,49 @@ function mkOrderBody(prediction, boardData) {
 
   return {
     order_method: 'IFDOCO',
-    minute_to_expire: FUTURE_RANGE.asMinutes(),
     time_in_force: 'GTC',
     parameters: [parentParam, firstParam, secondParam]
   }
 }
 
-async function trade(boardData) {
-  const {data} = await pdReq.post('/predict', boardData)
-  const {prediction} = data
+async function trade(boardData, prediction) {
+  const timestamp = Date.now().toString()
+  const bfReqPath = '/v1/me/sendparentorder'
+  const body = mkOrderBody(prediction, boardData)
+  const text = `${timestamp}POST${bfReqPath}${JSON.stringify(body)}`
+  const sign = crypto.createHmac('sha256', BF_SECRET).update(text).digest('hex')
 
-  if(prediction != FUTURE_TYPE.STABLE) {
-    if(!await isReadyToOrder()) {
-      console.error(`An order is already being placed : [ ${prediction} ] ${moment().format()}`)
-      return
+  console.log(`====== PLACING AN ORDER [ ${prediction} ] =======`)
+  console.log(`Current Price : ${boardData.price}`)
+  console.log(body)
+
+  const resp = await bfReq.post(bfReqPath, body, {
+    headers: {
+      'ACCESS-KEY': BF_APIKEY,
+      'ACCESS-TIMESTAMP': timestamp,
+      'ACCESS-SIGN': sign
     }
-
-    const timestamp = Date.now().toString()
-    const bfReqPath = '/v1/me/sendparentorder'
-    const body = mkOrderBody(prediction, boardData)
-    const text = `${timestamp}POST${bfReqPath}${JSON.stringify(body)}`
-    const sign = crypto.createHmac('sha256', BF_SECRET).update(text).digest('hex')
-
-    console.log(`====== PLACING AN ORDER [ ${prediction} ] =======`)
-    console.log(`Current Price : ${boardData.price}`)
-    console.log(body)
-
-    const resp = await bfReq.post(bfReqPath, body, {
-      headers: {
-        'ACCESS-KEY': BF_APIKEY,
-        'ACCESS-TIMESTAMP': timestamp,
-        'ACCESS-SIGN': sign
-      }
-    })
-    console.log('====== DONE =======')
-    console.log(resp.data)
-  }
+  })
+  console.log('====== DONE =======')
+  console.log(resp.data)
 }
 
 async function main() {
   const timer = setInterval(async () => {
     try {
       const boardData = await fetchBoard()
-      trade(boardData)
+      const {data} = await pdReq.post('/predict', boardData)
+      const {prediction} = data
+
+      if(prediction != FUTURE_TYPE.STABLE) {
+        if(argv.d) {
+          console.log(`[ ${prediction} ] ${moment().format()} }`)
+          return
+        }
+
+        if(! await isReadyToOrder()) { return }
+        trade(boardData, prediction)
+      }
     }
     catch(e) {
       console.error(e.response.data)
