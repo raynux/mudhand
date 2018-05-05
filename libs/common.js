@@ -15,6 +15,13 @@ const MARGIN_THRESHOLD = 0.002
 
 const bfReq = axios.create({ baseURL: 'https://api.bitflyer.jp' })
 
+function mergeLadders(record) {
+  const res = Object.assign({}, {
+    ladder: _.concat(_.reverse(record.bids), record.asks)
+  }, record)
+  return _.omit(res, ['bids', 'asks'])
+}
+
 function ladderDiff(base, ladders, max) {
   return _(ladders)
     .take(max)
@@ -48,5 +55,6 @@ module.exports = {
   FUTURE_RANGE,
   MARGIN_THRESHOLD,
   fetchBoard,
+  mergeLadders,
   bfReq
 }

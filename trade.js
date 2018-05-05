@@ -5,7 +5,7 @@ const crypto = require('crypto')
 const moment = require('moment')
 const {
   FUTURE_TYPE, MARGIN_THRESHOLD, PRODUCT_CODE,
-  bfReq, fetchBoard
+  bfReq, fetchBoard, mergeLadders
 } = require('./libs/common')
 const argv = require('yargs')
   // .usage('Usage: $0 --appid N')
@@ -142,7 +142,7 @@ async function main() {
   const timer = setInterval(async () => {
     try {
       const boardData = await fetchBoard()
-      const {data} = await pdReq.post('/predict', boardData)
+      const {data} = await pdReq.post('/predict', mergeLadders(boardData))
       const {prediction} = data
 
       if(argv.d) {

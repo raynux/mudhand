@@ -7,7 +7,7 @@ from keras.layers.merge import concatenate
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
 
-EPOCHS=5
+EPOCHS=10
 
 def get_batch_size():
     with open("./feed/count") as f:
@@ -23,20 +23,20 @@ def load_feed(batch_size, fname):
         while line:
             rec = json.loads(line) 
             futures[count] = rec['future']
-            ladders[count] = rec['asks'] + rec['bids']
+            ladders[count] = rec['ladder']
             count += 1
             line = f.readline()
     return (futures, ladders)
 
 
 batch_size = get_batch_size()
+print('Loading ' + str(batch_size) + ' records....')
 
 (train_Y, train_X_ladder) = load_feed(batch_size, './feed/data')
 train_Y = to_categorical(train_Y, num_classes=3)
 
 print(train_Y.shape)
 print(train_X_ladder.shape)
-
 
 ladder_in = Input(shape=(train_X_ladder.shape[1], train_X_ladder.shape[2]))
 ladder = Conv1D(64, 8, strides=1, padding='same', activation='relu')(ladder_in)
@@ -49,6 +49,7 @@ ladder = Dropout(0.5)(ladder)
 ladder = Flatten()(ladder)
 ladder = Dense(units=32, activation='relu')(ladder)
 ladder = Dropout(0.5)(ladder)
+ladder = Dense(units=32, activation='relu')(ladder)
 
 # merged = concatenate([bids_layer, asks_layer])
 # merged = Dropout(0.5)(merged)
@@ -64,7 +65,7 @@ model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 model.summary()
 
 model.fit(train_X_ladder, train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
-    EarlyStopping(monitor='val_loss'),
+    EarlyStopping(monitor='val_loss', patience=3),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
 model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))

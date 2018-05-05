@@ -2,8 +2,9 @@
 const _ = require('lodash')
 const fs = require('fs-extra')
 const moment = require('moment')
+const {mergeLadders} = require('./libs/common')
 const {Sequelize, Board} = require('./libs/database')
-const {Op} = Sequelize;
+const {Op} = Sequelize
 
 const FEED_DIR = './feed'
 const FEED_PATH = `${FEED_DIR}/data`
@@ -65,9 +66,10 @@ async function main() {
     })
 
     for(const rec of resp) {
-      rec.dataValues.bids = _.reverse(rec.dataValues.bids)
-      feedWS.write(`${JSON.stringify(rec.dataValues)}\n`)
-      stats[rec.dataValues.future] += 1
+      const data = mergeLadders(rec.dataValues)
+      feedWS.write(`${JSON.stringify(data)}\n`)
+
+      stats[data.future] += 1
       stats.total += 1
     }
   }
