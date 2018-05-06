@@ -44,6 +44,9 @@ print(train_X_ladder.shape)
 print(test_Y.shape)
 print(test_X_ladder.shape)
 
+#
+# Building Model
+#
 ladder_in = Input(shape=(train_X_ladder.shape[1], train_X_ladder.shape[2]))
 ladder = Conv1D(64, 8, strides=1, padding='same', activation='relu')(ladder_in)
 ladder = MaxPooling1D(2, padding='same')(ladder)
@@ -70,6 +73,9 @@ model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 
 model.summary()
 
+#
+# Training
+#
 model.fit(train_X_ladder, train_Y, validation_data=(test_X_ladder, test_Y), epochs=EPOCHS, callbacks=[
     EarlyStopping(monitor='loss', patience=1),
     TensorBoard(log_dir='./logs', histogram_freq=0)
