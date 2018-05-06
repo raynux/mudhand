@@ -12,5 +12,3 @@ const {Op} = Sequelize;
   })
   console.log(`${ft} : ${c}`)
 })
-
-process.exit()

@@ -32,6 +32,7 @@ const argv = require('yargs')
   // .demandOption([''])
   .argv
 
+const BACK_OFF_PERIOD = 60000
 const {BF_APIKEY, BF_SECRET} = process.env
 const pdReq = axios.create({ baseURL: argv.p })
 
@@ -152,7 +153,9 @@ async function main() {
 
       if(prediction != FUTURE_TYPE.STABLE) {
         if(! await isReadyToOrder()) { return }
+        clearInterval(timer)
         trade(boardData, prediction)
+        setTimeout(main, BACK_OFF_PERIOD)   // 
       }
     }
     catch(e) {
