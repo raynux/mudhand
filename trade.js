@@ -33,7 +33,7 @@ const argv = require('yargs')
   .argv
 
 const BACK_OFF_PERIOD = 60000
-const {BF_APIKEY, BF_SECRET} = process.env
+const {BF_APIKEY, BF_SECRET, SLACK_POST_URL} = process.env
 const pdReq = axios.create({ baseURL: argv.p })
 
 async function isReadyToOrder() {
@@ -117,6 +117,12 @@ function mkOrderBody(prediction, boardData) {
   }
 }
 
+async function notifySlack(price, body) {
+  const side = _.get(body, 'parameters[0].side')
+  const text = `${side} : ${price}`
+  axios.post(SLACK_POST_URL, { text })
+}
+
 async function trade(boardData, prediction) {
   const timestamp = Date.now().toString()
   const bfReqPath = '/v1/me/sendparentorder'
@@ -137,6 +143,8 @@ async function trade(boardData, prediction) {
   })
   console.log('====== DONE =======')
   console.log(resp.data)
+
+  notifySlack(boardData.price, body)
 }
 
 async function main() {

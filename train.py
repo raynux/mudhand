@@ -77,7 +77,7 @@ model.summary()
 # Training
 #
 model.fit(train_X_ladder, train_Y, validation_data=(test_X_ladder, test_Y), epochs=EPOCHS, callbacks=[
-    EarlyStopping(monitor='loss', patience=1),
+    EarlyStopping(monitor='val_loss', patience=1),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
 model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))
