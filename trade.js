@@ -64,14 +64,14 @@ function mkOrderBody(prediction, boardData) {
       product_code: PRODUCT_CODE,
       condition_type: 'MARKET',
       side: 'BUY',
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
     firstParam = {
       product_code: PRODUCT_CODE,
       condition_type: 'LIMIT',
       side: 'SELL',
       price: higherPrice,
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
     secondParam = {
       product_code: PRODUCT_CODE,
@@ -79,7 +79,7 @@ function mkOrderBody(prediction, boardData) {
       side: 'SELL',
       price: lowerPrice,
       trigger_price: lowerPrice,
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
   }
   else if(prediction === FUTURE_TYPE.DROP) {
@@ -87,14 +87,14 @@ function mkOrderBody(prediction, boardData) {
       product_code: PRODUCT_CODE,
       condition_type: 'MARKET',
       side: 'SELL',
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
     firstParam = {
       product_code: PRODUCT_CODE,
       condition_type: 'LIMIT',
       side: 'BUY',
       price: lowerPrice,
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
     secondParam = {
       product_code: PRODUCT_CODE,
@@ -102,7 +102,7 @@ function mkOrderBody(prediction, boardData) {
       side: 'BUY',
       price: higherPrice,
       trigger_price: higherPrice,
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
   }
   else {
