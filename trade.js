@@ -54,7 +54,7 @@ async function isReadyToOrder() {
 }
 
 function mkOrderBody(prediction, boardData) {
-  const priceDiff = _.round(boardData.price * MARGIN_THRESHOLD)
+  const priceDiff = _.round(boardData.price * (MARGIN_THRESHOLD / 2))
   const lowerPrice = boardData.price - priceDiff 
   const higherPrice = boardData.price + priceDiff
 
