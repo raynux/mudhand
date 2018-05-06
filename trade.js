@@ -17,7 +17,7 @@ const argv = require('yargs')
   .options('f', {
     alias: 'frequency',
     nargs: 1,
-    default: 10000,
+    default: 5000,
   })
   .options('p', {
     alias: 'prediction-server',
@@ -172,6 +172,6 @@ async function main() {
       clearInterval(timer)
       main() // restart
     }
-  }, argv.f)
+  }, _.toInteger(argv.f))
 }
 main()
