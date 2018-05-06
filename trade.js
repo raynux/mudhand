@@ -32,7 +32,7 @@ const argv = require('yargs')
   // .demandOption([''])
   .argv
 
-const BACK_OFF_PERIOD = 60000 * 5
+const BACK_OFF_PERIOD = 60000 * 3
 const {BF_APIKEY, BF_SECRET, SLACK_POST_URL} = process.env
 const pdReq = axios.create({ baseURL: argv.p })
 
