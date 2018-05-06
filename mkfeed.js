@@ -13,10 +13,13 @@ const FEED_TRAIN = `${FEED_DIR}/train`
 const FEED_TRAIN_COUNT = `${FEED_DIR}/train_count`
 const FEED_TEST = `${FEED_DIR}/test`
 const FEED_TEST_COUNT = `${FEED_DIR}/test_count`
+const FEED_NZ = `${FEED_DIR}/nz`
+const FEED_NZ_COUNT = `${FEED_DIR}/nz_count`
 
 const stats = {
   trainTotal: 0,
   testTotal: 0,
+  nzTotal: 0,
   0: 0,
   1: 0,
   2: 0
@@ -60,6 +63,7 @@ async function main() {
 
   const trainWS = fs.createWriteStream(FEED_TRAIN, {defaultEncoding: 'utf8'})
   const testWS = fs.createWriteStream(FEED_TEST, {defaultEncoding: 'utf8'})
+  const nzWS = fs.createWriteStream(FEED_NZ, {defaultEncoding: 'utf8'})
 
   for(const range of ranges) {
     const resp = await Board.findAll({
@@ -83,12 +87,18 @@ async function main() {
         stats[data.future] += 1
         stats.trainTotal += 1
       }
+
+      if(data.future != 0) {
+        nzWS.write(`${JSON.stringify(data)}\n`)
+        stats.nzTotal += 1
+      }
     }
   }
 
   [trainWS, testWS].forEach((ws) => ws.end())
   await fs.writeFile(FEED_TRAIN_COUNT, stats.trainTotal)
   await fs.writeFile(FEED_TEST_COUNT, stats.testTotal)
+  await fs.writeFile(FEED_NZ_COUNT, stats.nzTotal)
 
   clearInterval(timer)
   process.exit(0)

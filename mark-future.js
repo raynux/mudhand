@@ -6,6 +6,40 @@ const {Sequelize, Board} = require('./libs/database')
 const {Op} = Sequelize
 const {FUTURE_TYPE, FUTURE_RANGE, MARGIN_THRESHOLD} = require('./libs/common')
 
+async function getFutureType(price, timestamp) {
+  const futureRecs = await Board.findAll({
+    attributes: ['id', 'price', 'timestamp'],
+    where: {
+      timestamp: {
+        [Op.between]: [
+          moment(timestamp).add(1, 'second').toDate(),
+          moment(timestamp).add(FUTURE_RANGE).toDate()
+        ]
+      }
+    },
+    order: ['timestamp']
+  })
+
+  const futurePriceSeq = _.map(futureRecs, (r) => r.price)
+  const futurePriceDiffSeq = _.map(futurePriceSeq, (p) => (p / price - 1))
+
+  let futureType = FUTURE_TYPE.STABLE
+  futurePriceDiffSeq.forEach((d) => {
+    if(d >= MARGIN_THRESHOLD) {
+      // console.log('RAISE', _.round(d, 6))
+      futureType = FUTURE_TYPE.RAISE
+      return
+    }
+    if(d <= -MARGIN_THRESHOLD) {
+      // console.log('DROP', _.round(d, 6))
+      futureType = FUTURE_TYPE.DROP
+      return
+    }
+  })
+
+  return futureType
+}
+
 async function main() {
   // await sequelize.sync()
 
@@ -20,35 +54,7 @@ async function main() {
   resp.forEach((rec) => {
     queue.add(async () => {
       const {price, timestamp} = rec.dataValues
-      const from = moment(timestamp).add(1, 'second').toDate()
-      const to = moment(timestamp).add(FUTURE_RANGE).toDate()
-
-      const futureRecs = await Board.findAll({
-        attributes: ['id', 'price', 'timestamp'],
-        where: {
-          timestamp: {
-            [Op.between]: [from, to]
-          }
-        },
-        order: ['timestamp']
-      })
-
-      const priceSeq = _.map(futureRecs, (r) => r.price)
-      const priceDiffSeq = _.map(priceSeq, (p) => (p / price - 1))
-
-      let futureType = FUTURE_TYPE.STABLE
-      priceDiffSeq.forEach((d) => {
-        if(d >= MARGIN_THRESHOLD) {
-          // console.log('RAISE', _.round(d, 6))
-          futureType = FUTURE_TYPE.RAISE
-          return
-        }
-        if(d <= -MARGIN_THRESHOLD) {
-          // console.log('DROP', _.round(d, 6))
-          futureType = FUTURE_TYPE.DROP
-          return
-        }
-      })
+      const futureType = await getFutureType(price, timestamp)
 
       await rec.update({future: futureType})
     })
