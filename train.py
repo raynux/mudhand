@@ -7,7 +7,7 @@ from keras.layers.merge import concatenate
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
 
-EPOCHS=10
+EPOCHS=20
 
 def get_batch_size(fname):
     with open(fname) as f:
@@ -71,7 +71,7 @@ model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 model.summary()
 
 model.fit(train_X_ladder, train_Y, validation_data=(test_X_ladder, test_Y), epochs=EPOCHS, callbacks=[
-    EarlyStopping(monitor='loss', patience=3),
+    EarlyStopping(monitor='loss', patience=1),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
 model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))
