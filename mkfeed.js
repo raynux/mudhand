@@ -2,7 +2,7 @@
 const _ = require('lodash')
 const fs = require('fs-extra')
 const moment = require('moment')
-const {Sequelize, sequelize, Ohlc, Board} = require('./libs/database')
+const {Sequelize, sequelize, Ohlc} = require('./libs/database')
 const {Op} = Sequelize
 
 const SEQ_RANGE = moment.duration(120, 'minutes')
