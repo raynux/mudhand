@@ -11,7 +11,7 @@ def get_batch_size(fname):
 
 def load_feed(batch_size, fname):
     futures = np.empty((batch_size))
-    past = np.empty((batch_size, 60, 5))
+    past = np.empty((batch_size, 60, 4))
 
     count = 0
     with open(fname) as f:

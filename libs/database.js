@@ -69,10 +69,6 @@ const Ohlc = sequelize.define('ohlc', {
     type: Sequelize.INTEGER,
     allowNull: false,
   },
-  volume: {
-    type: Sequelize.FLOAT,
-    allowNull: false,
-  },
   future: {
     type: Sequelize.INTEGER,
     allowNull: true,

@@ -15,7 +15,7 @@ def get_batch_size(fname):
 
 def load_feed(batch_size, fname):
     futures = np.empty((batch_size))
-    past = np.empty((batch_size, 60, 5))
+    past = np.empty((batch_size, 60, 4))
 
     count = 0
     with open(fname) as f:
@@ -44,10 +44,10 @@ print(train_X_past.shape)
 # Building Model
 #
 past_in = Input(shape=(train_X_past.shape[1], train_X_past.shape[2]))
-past = Conv1D(128, 8, strides=1, padding='same', activation='relu')(past_in)
+past = Conv1D(128, 5, strides=1, padding='same', activation='relu')(past_in)
 past = MaxPooling1D(2, padding='same')(past)
 past = Dropout(0.7)(past)
-past = Conv1D(128, 8, strides=1, padding='same', activation='relu')(past)
+past = Conv1D(128, 5, strides=1, padding='same', activation='relu')(past)
 past = MaxPooling1D(2, padding='same')(past)
 past = Dropout(0.7)(past)
 

@@ -2,10 +2,10 @@
 const _ = require('lodash')
 const fs = require('fs-extra')
 const moment = require('moment')
-const {Sequelize, sequelize, Ohlc} = require('./libs/database')
+const {Sequelize, sequelize, Ohlc, Board} = require('./libs/database')
 const {Op} = Sequelize
 
-const SEQ_RANGE = moment.duration(60, 'minutes')
+const SEQ_RANGE = moment.duration(120, 'minutes')
 
 const FEED_DIR = './feed'
 const FEED_DATA = `${FEED_DIR}/data`
@@ -69,7 +69,7 @@ async function main() {
           r.high / base.high,
           r.low / base.low,
           r.close / base.close,
-          r.volume / 10000
+          // r.volume / 10000
         ]
       })
       .value()
