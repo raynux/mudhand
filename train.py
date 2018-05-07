@@ -7,77 +7,73 @@ from keras.layers.merge import concatenate
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
 
-EPOCHS=2
+EPOCHS=20
 
-def get_batch_size():
-    with open("./feed/count") as f:
+def get_batch_size(fname):
+    with open(fname) as f:
         return int(f.readline())
 
-def get_futures(batch_size, fname):
-    future = np.empty((batch_size))
+def load_feed(batch_size, fname):
+    futures = np.empty((batch_size))
+    past = np.empty((batch_size, 60, 5))
+
     count = 0
     with open(fname) as f:
         line = f.readline()
         while line:
-            future[count] = int(line)
-            count +=1
-            line = f.readline()
-    return future
-
-def get_price_ladder(batch_size, fname):
-    ladder = np.empty((batch_size, 500, 2))
-    count = 0
-    with open("./feed/future") as f:
-        line = f.readline()
-        while line:
-            ladder[count] = json.loads(line)
+            rec = json.loads(line) 
+            futures[count] = rec['future']
+            past[count] = rec['past']
             count += 1
             line = f.readline()
-    return ladder
+    return (futures, past)
 
 
-batch_size = get_batch_size()
+print('Loading ....')
+batch_size = get_batch_size('./feed/count')
 
-train_Y = get_futures(batch_size, "./feed/future")
+(train_Y, train_X_past) = load_feed(batch_size, './feed/data')
+print(train_Y.shape)
+print(train_Y)
 train_Y = to_categorical(train_Y, num_classes=3)
 
-train_X_bids = get_price_ladder(batch_size, "./feed/bids")
-train_X_asks = get_price_ladder(batch_size, "./feed/asks")
-
-# train_X = train_X_bids
-
 print(train_Y.shape)
-print(train_X_bids.shape)
-print(train_X_asks.shape)
+print(train_X_past.shape)
 
+#
+# Building Model
+#
+past_in = Input(shape=(train_X_past.shape[1], train_X_past.shape[2]))
+past = Conv1D(128, 8, strides=1, padding='same', activation='relu')(past_in)
+past = MaxPooling1D(2, padding='same')(past)
+past = Dropout(0.7)(past)
+past = Conv1D(128, 8, strides=1, padding='same', activation='relu')(past)
+past = MaxPooling1D(2, padding='same')(past)
+past = Dropout(0.7)(past)
 
-bids_layer_in = Input(shape=(train_X_bids.shape[1], train_X_bids.shape[2]))
-bids_layer = Conv1D(32, 8, strides=1, padding='same', activation='relu')(bids_layer_in)
-bids_layer = MaxPooling1D(2, padding='same')(bids_layer)
-bids_layer = Dropout(0.5)(bids_layer)
-bids_layer = Flatten()(bids_layer)
-bids_layer = Dense(units=32, activation='relu')(bids_layer)
+past = Flatten()(past)
+past = Dense(units=64, activation='relu')(past)
+past = Dropout(0.7)(past)
+past = Dense(units=64, activation='relu')(past)
 
-asks_layer_in = Input(shape=(train_X_asks.shape[1], train_X_asks.shape[2]))
-asks_layer = Conv1D(32, 8, strides=1, padding='same', activation='relu')(asks_layer_in)
-asks_layer = MaxPooling1D(2, padding='same')(asks_layer)
-asks_layer = Dropout(0.5)(asks_layer)
-asks_layer = Flatten()(asks_layer)
-asks_layer = Dense(units=32, activation='relu')(asks_layer)
+# merged = concatenate([bids_layer, asks_layer])
+# merged = Dropout(0.5)(merged)
+# merged = Dense(units=16, activation='relu')(merged)
+# prediction = Dense(units=3, activation='softmax')(merged)
+# model = Model(inputs=[bids_layer_in, asks_layer_in], outputs=prediction)
 
-merged = concatenate([bids_layer, asks_layer])
-merged = Dropout(0.5)(merged)
-merged = Dense(units=16, activation='relu')(merged)
+prediction = Dense(units=3, activation='softmax')(past)
 
-prediction = Dense(units=3, activation='softmax')(merged)
-
-model = Model(inputs=[bids_layer_in, asks_layer_in], outputs=prediction)
+model = Model(inputs=past_in, outputs=prediction)
 model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 
-model.summary()
+# model.summary()
 
-model.fit([train_X_bids, train_X_asks], train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
-    EarlyStopping(monitor='val_loss'),
+#
+# Training
+#
+model.fit(train_X_past, train_Y, validation_split=0.2, epochs=EPOCHS, callbacks=[
+    EarlyStopping(monitor='val_loss', patience=0),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
 model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))

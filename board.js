@@ -21,19 +21,17 @@ const ROOT_DIR = 'board'
 const bucket = storage.bucket('mudhand')
 
 function saveToGCS(boardData) {
-  const BASE_DIR = `${ROOT_DIR}/${boardData.startAt}`
   const boardJSON = JSON.stringify(boardData)
-  const seqStr = `00000${boardData.seqNo}`.slice(-6)
-
-  const file = bucket.file(`${BASE_DIR}/${seqStr}.json`)
+  const filePath = `${ROOT_DIR}/${moment().utc().format('YYYY/MM/DD/HHmmss')}.json`
+  const file = bucket.file(filePath)
 
   sts(boardJSON)
     .pipe(file.createWriteStream({ gzip: true }))
     .on('error', () => {
-      console.error(`writing error at SEQ ${boardData.seqNo}`)
+      console.error(`writing error at SEQ ${filePath}`)
     })
     .on('finish', () => {
-      console.log(`SEQ NO [ ${seqStr} ] : ${moment().format('YYYY-MM-DD HH:mm:ss')}`)
+      console.log(filePath)
     })
 }
 

@@ -6,7 +6,7 @@ const Queue = require('promise-queue')
 const storage = fs.pathExistsSync('./key.json') ?
   require('@google-cloud/storage')({ keyFilename: './key.json' }) :
   require('@google-cloud/storage')()
-const {sequelize, Board} = require('./database')
+const {sequelize, Board} = require('./libs/database')
 
 const ROOT_DIR = 'board'
 
@@ -54,6 +54,7 @@ async function main() {
 
     if(_.isEmpty(batch) && queue.getQueueLength() === 0) {
       clearInterval(timer)
+      process.exit(0)
     }
   }, 2000)
 }

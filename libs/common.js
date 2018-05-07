@@ -10,10 +10,17 @@ const FUTURE_TYPE = {
   RAISE: 1,
   DROP: 2
 }
-const FUTURE_RANGE = moment.duration(10, 'minutes') 
-const MARGIN_THRESHOLD = 0.002
+const FUTURE_RANGE = moment.duration(5, 'minutes') 
+const MARGIN_THRESHOLD = 0.003
 
 const bfReq = axios.create({ baseURL: 'https://api.bitflyer.jp' })
+
+function mergeLadders(record) {
+  const res = Object.assign({}, {
+    ladder: _.concat(_.reverse(record.bids), record.asks)
+  }, record)
+  return _.omit(res, ['bids', 'asks'])
+}
 
 function ladderDiff(base, ladders, max) {
   return _(ladders)
@@ -48,5 +55,6 @@ module.exports = {
   FUTURE_RANGE,
   MARGIN_THRESHOLD,
   fetchBoard,
+  mergeLadders,
   bfReq
 }

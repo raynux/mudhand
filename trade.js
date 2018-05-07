@@ -5,7 +5,7 @@ const crypto = require('crypto')
 const moment = require('moment')
 const {
   FUTURE_TYPE, MARGIN_THRESHOLD, PRODUCT_CODE,
-  bfReq, fetchBoard
+  bfReq, fetchBoard, mergeLadders
 } = require('./libs/common')
 const argv = require('yargs')
   // .usage('Usage: $0 --appid N')
@@ -17,7 +17,7 @@ const argv = require('yargs')
   .options('f', {
     alias: 'frequency',
     nargs: 1,
-    default: 10000,
+    default: 5000,
   })
   .options('p', {
     alias: 'prediction-server',
@@ -32,7 +32,8 @@ const argv = require('yargs')
   // .demandOption([''])
   .argv
 
-const {BF_APIKEY, BF_SECRET} = process.env
+const BACK_OFF_PERIOD = 60000 * 3
+const {BF_APIKEY, BF_SECRET, SLACK_POST_URL} = process.env
 const pdReq = axios.create({ baseURL: argv.p })
 
 async function isReadyToOrder() {
@@ -53,7 +54,7 @@ async function isReadyToOrder() {
 }
 
 function mkOrderBody(prediction, boardData) {
-  const priceDiff = _.round(boardData.price * MARGIN_THRESHOLD)
+  const priceDiff = _.round(boardData.price * (MARGIN_THRESHOLD / 2))
   const lowerPrice = boardData.price - priceDiff 
   const higherPrice = boardData.price + priceDiff
 
@@ -63,14 +64,14 @@ function mkOrderBody(prediction, boardData) {
       product_code: PRODUCT_CODE,
       condition_type: 'MARKET',
       side: 'BUY',
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
     firstParam = {
       product_code: PRODUCT_CODE,
       condition_type: 'LIMIT',
       side: 'SELL',
       price: higherPrice,
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
     secondParam = {
       product_code: PRODUCT_CODE,
@@ -78,7 +79,7 @@ function mkOrderBody(prediction, boardData) {
       side: 'SELL',
       price: lowerPrice,
       trigger_price: lowerPrice,
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
   }
   else if(prediction === FUTURE_TYPE.DROP) {
@@ -86,14 +87,14 @@ function mkOrderBody(prediction, boardData) {
       product_code: PRODUCT_CODE,
       condition_type: 'MARKET',
       side: 'SELL',
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
     firstParam = {
       product_code: PRODUCT_CODE,
       condition_type: 'LIMIT',
       side: 'BUY',
       price: lowerPrice,
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
     secondParam = {
       product_code: PRODUCT_CODE,
@@ -101,7 +102,7 @@ function mkOrderBody(prediction, boardData) {
       side: 'BUY',
       price: higherPrice,
       trigger_price: higherPrice,
-      size: argv.b
+      size: _.toNumber(argv.b)
     }
   }
   else {
@@ -114,6 +115,12 @@ function mkOrderBody(prediction, boardData) {
     time_in_force: 'GTC',
     parameters: [parentParam, firstParam, secondParam]
   }
+}
+
+async function notifySlack(price, body) {
+  const side = _.get(body, 'parameters[0].side')
+  const text = `${side} : ${price}`
+  axios.post(SLACK_POST_URL, { text })
 }
 
 async function trade(boardData, prediction) {
@@ -136,31 +143,35 @@ async function trade(boardData, prediction) {
   })
   console.log('====== DONE =======')
   console.log(resp.data)
+
+  notifySlack(boardData.price, body)
 }
 
 async function main() {
   const timer = setInterval(async () => {
     try {
       const boardData = await fetchBoard()
-      const {data} = await pdReq.post('/predict', boardData)
+      const {data} = await pdReq.post('/predict', mergeLadders(boardData))
       const {prediction} = data
 
-      if(prediction != FUTURE_TYPE.STABLE) {
-        if(argv.d) {
-          console.log(`[ ${prediction} ] ${moment().format()} }`)
-          return
-        }
+      if(argv.d) {
+        console.log(`[ ${prediction} ] ${moment().format()} }`)
+        return
+      }
 
+      if(prediction != FUTURE_TYPE.STABLE) {
         if(! await isReadyToOrder()) { return }
+        clearInterval(timer)
         trade(boardData, prediction)
+        setTimeout(main, BACK_OFF_PERIOD)   // 
       }
     }
     catch(e) {
-      console.error(e.response.data)
+      console.error(e)
       console.error('something went wrong')
       clearInterval(timer)
       main() // restart
     }
-  }, argv.f)
+  }, _.toInteger(argv.f))
 }
 main()
