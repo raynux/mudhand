@@ -2,24 +2,17 @@
 const _ = require('lodash')
 const fs = require('fs-extra')
 const moment = require('moment')
-const {mergeLadders} = require('./libs/common')
-const {Sequelize, Board} = require('./libs/database')
+const {Sequelize, sequelize, Ohlc} = require('./libs/database')
 const {Op} = Sequelize
 
-const TEST_RATIO = 4 // 25%
+const SEQ_RANGE = moment.duration(60, 'minutes')
 
 const FEED_DIR = './feed'
-const FEED_TRAIN = `${FEED_DIR}/train`
-const FEED_TRAIN_COUNT = `${FEED_DIR}/train_count`
-const FEED_TEST = `${FEED_DIR}/test`
-const FEED_TEST_COUNT = `${FEED_DIR}/test_count`
-const FEED_NZ = `${FEED_DIR}/nz`
-const FEED_NZ_COUNT = `${FEED_DIR}/nz_count`
+const FEED_DATA = `${FEED_DIR}/data`
+const FEED_COUNT = `${FEED_DIR}/count`
 
 const stats = {
-  trainTotal: 0,
-  testTotal: 0,
-  nzTotal: 0,
+  total: 0,
   0: 0,
   1: 0,
   2: 0
@@ -30,75 +23,64 @@ const timer = setInterval(() => {
 }, 5000)
 
 async function displayRecordCount() {
-  const total = await Board.count() 
-  const stable = await Board.count({where: {future: 0}})
-  const raise = await Board.count({where: {future: 1}})
-  const drop = await Board.count({where: {future: 2}})
+  const total = await Ohlc.count() 
+  const stable = await Ohlc.count({where: {future: 0}})
+  const raise = await Ohlc.count({where: {future: 1}})
+  const drop = await Ohlc.count({where: {future: 2}})
+  const inv = await Ohlc.count({where: {future: null}})
 
-  console.log(`Total  : ${total}`)
-  console.log(`Stable : ${stable} [ ${_.round(stable / total, 2)} ]`)
-  console.log(`Raise  : ${raise} [ ${_.round(raise / total, 2)} ]`)
-  console.log(`Drop   : ${drop} [ ${_.round(drop / total, 2)} ]`)
-}
-
-async function getTimestampRange() {
-  const results = []
-  const min = moment(await Board.min('timestamp'))
-  const max = moment(await Board.max('timestamp'))
-  const cursor = min.clone()
-
-  while(cursor.isBefore(max)) {
-
-    results.push([
-      cursor.clone().toDate(),
-      cursor.add(1, 'hours').toDate()
-    ])
-  }
-  return results
+  console.log(`Total   : ${total}`)
+  console.log(`Stable  : ${stable} [ ${_.round(stable / total, 2)} ]`)
+  console.log(`Raise   : ${raise} [ ${_.round(raise / total, 2)} ]`)
+  console.log(`Drop    : ${drop} [ ${_.round(drop / total, 2)} ]`)
+  console.log(`Invalid : ${inv} [ ${_.round(inv / total, 2)} ]`)
 }
 
 async function main() {
   await displayRecordCount()
-  const ranges = await getTimestampRange()
+  const feedWS = fs.createWriteStream(FEED_DATA, {defaultEncoding: 'utf8'})
 
-  const trainWS = fs.createWriteStream(FEED_TRAIN, {defaultEncoding: 'utf8'})
-  const testWS = fs.createWriteStream(FEED_TEST, {defaultEncoding: 'utf8'})
-  const nzWS = fs.createWriteStream(FEED_NZ, {defaultEncoding: 'utf8'})
+  const baseRecs = await Ohlc.findAll({
+    // limit: 1,
+    order: sequelize.random()
+  })
 
-  for(const range of ranges) {
-    const resp = await Board.findAll({
-      attributes: ['future', 'bids', 'asks'],
+  for(const base of baseRecs) {
+    if(_.isNull(base.future)) { continue }
+
+    const pastRecs = await Ohlc.findAll({
       where: {
         timestamp: {
-          [Op.between]: range
+          [Op.between]: [
+            moment(base.timestamp).subtract(SEQ_RANGE).toDate(),
+            moment(base.timestamp).subtract(1, 'seconds').toDate()
+          ]
         }
-      }
+      },
+      order: [ ['timestamp', 'DESC'] ]
     })
 
-    for(const rec of resp) {
-      const data = mergeLadders(rec.dataValues)
+    if(pastRecs.length < SEQ_RANGE.asMinutes()) { continue }
 
-      if(_.random(1000) % TEST_RATIO === 0) {
-        testWS.write(`${JSON.stringify(data)}\n`)
-        stats.testTotal += 1
-      }
-      else {
-        trainWS.write(`${JSON.stringify(data)}\n`)
-        stats[data.future] += 1
-        stats.trainTotal += 1
-      }
+    const past = _(pastRecs)
+      .map((r) => {
+        return [
+          r.open / base.open,
+          r.high / base.high,
+          r.low / base.low,
+          r.close / base.close,
+          r.volume / 10000
+        ]
+      })
+      .value()
 
-      if(data.future != 0) {
-        nzWS.write(`${JSON.stringify(data)}\n`)
-        stats.nzTotal += 1
-      }
-    }
+    const data = {future: base.future, past}
+    feedWS.write(`${JSON.stringify(data)}\n`)
+    stats.total += 1
   }
 
-  [trainWS, testWS].forEach((ws) => ws.end())
-  await fs.writeFile(FEED_TRAIN_COUNT, stats.trainTotal)
-  await fs.writeFile(FEED_TEST_COUNT, stats.testTotal)
-  await fs.writeFile(FEED_NZ_COUNT, stats.nzTotal)
+  feedWS.end()
+  await fs.writeFile(FEED_COUNT, stats.total)
 
   clearInterval(timer)
   process.exit(0)

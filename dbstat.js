@@ -1,13 +1,13 @@
 'use strict'
 const _ = require('lodash')
-const {Sequelize, Board} = require('./libs/database')
+const {Sequelize, Ohlc} = require('./libs/database')
 const {Op} = Sequelize
 
 async function main() {
-  const total = await Board.count()
+  const total = await Ohlc.count()
 
-  for(const ft of [0, 1, 2]) {
-    const c = await Board.count({
+  for(const ft of [0, 1, 2, null]) {
+    const c = await Ohlc.count({
       where: {
         future: {
           [Op.eq]: ft

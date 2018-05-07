@@ -2,29 +2,36 @@
 const _ = require('lodash')
 const moment = require('moment')
 const Queue = require('promise-queue')
-const {Sequelize, Board} = require('./libs/database')
+const {Sequelize, sequelize, Ohlc} = require('./libs/database')
 const {Op} = Sequelize
 const {FUTURE_TYPE, FUTURE_RANGE, MARGIN_THRESHOLD} = require('./libs/common')
 
-async function getFutureType(price, timestamp) {
-  const futureRecs = await Board.findAll({
-    attributes: ['id', 'price', 'timestamp'],
+async function getFutureType(base) {
+  const futureRecs = await Ohlc.findAll({
     where: {
       timestamp: {
         [Op.between]: [
-          moment(timestamp).add(1, 'second').toDate(),
-          moment(timestamp).add(FUTURE_RANGE).toDate()
+          moment(base.timestamp).add(1, 'second').toDate(),
+          moment(base.timestamp).add(FUTURE_RANGE).toDate()
         ]
       }
     },
     order: ['timestamp']
   })
 
-  const futurePriceSeq = _.map(futureRecs, (r) => r.price)
-  const futurePriceDiffSeq = _.map(futurePriceSeq, (p) => (p / price - 1))
+  // Does not have enough future data
+  if(futureRecs.length < FUTURE_RANGE.asMinutes()) {
+    return null
+  }
+
+  const futureCloseSeq = _(futureRecs)
+    .map((r) => r.close)
+    .map((r) => (r / base.close - 1))
+    .map((r) => _.round(r, 4))
+    .value()
 
   let futureType = FUTURE_TYPE.STABLE
-  futurePriceDiffSeq.forEach((d) => {
+  futureCloseSeq.forEach((d) => {
     if(d >= MARGIN_THRESHOLD) {
       // console.log('RAISE', _.round(d, 6))
       futureType = FUTURE_TYPE.RAISE
@@ -36,26 +43,26 @@ async function getFutureType(price, timestamp) {
       return
     }
   })
-
+  
+  // if(_.includes([1,2], futureType)) {
+  //   console.log(`${futureType} : ${futureCloseSeq}`)
+  // }
   return futureType
 }
 
 async function main() {
-  // await sequelize.sync()
+  await sequelize.sync()
 
   const queue = new Queue(2, Infinity)
 
-  const resp = await Board.findAll({
-    attributes: ['id', 'price', 'timestamp'],
-    // limit: 10,
+  const resp = await Ohlc.findAll({
+    // limit: 2,
     order: ['timestamp']
   })
 
   resp.forEach((rec) => {
     queue.add(async () => {
-      const {price, timestamp} = rec.dataValues
-      const futureType = await getFutureType(price, timestamp)
-
+      const futureType = await getFutureType(rec)
       await rec.update({future: futureType})
     })
   })

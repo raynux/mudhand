@@ -15,7 +15,7 @@ def get_batch_size(fname):
 
 def load_feed(batch_size, fname):
     futures = np.empty((batch_size))
-    ladders = np.empty((batch_size, 1000, 2))
+    past = np.empty((batch_size, 60, 5))
 
     count = 0
     with open(fname) as f:
@@ -23,42 +23,38 @@ def load_feed(batch_size, fname):
         while line:
             rec = json.loads(line) 
             futures[count] = rec['future']
-            ladders[count] = rec['ladder']
+            past[count] = rec['past']
             count += 1
             line = f.readline()
-    return (futures, ladders)
+    return (futures, past)
 
 
 print('Loading ....')
-train_batch_size = get_batch_size('./feed/train_count')
-test_batch_size = get_batch_size('./feed/test_count')
+batch_size = get_batch_size('./feed/count')
 
-(train_Y, train_X_ladder) = load_feed(train_batch_size, './feed/train')
+(train_Y, train_X_past) = load_feed(batch_size, './feed/data')
+print(train_Y.shape)
+print(train_Y)
 train_Y = to_categorical(train_Y, num_classes=3)
 
-(test_Y, test_X_ladder) = load_feed(test_batch_size, './feed/test')
-test_Y = to_categorical(test_Y, num_classes=3)
-
 print(train_Y.shape)
-print(train_X_ladder.shape)
-print(test_Y.shape)
-print(test_X_ladder.shape)
+print(train_X_past.shape)
 
 #
 # Building Model
 #
-ladder_in = Input(shape=(train_X_ladder.shape[1], train_X_ladder.shape[2]))
-ladder = Conv1D(64, 8, strides=1, padding='same', activation='relu')(ladder_in)
-ladder = MaxPooling1D(2, padding='same')(ladder)
-ladder = Dropout(0.3)(ladder)
-ladder = Conv1D(64, 8, strides=1, padding='same', activation='relu')(ladder)
-ladder = MaxPooling1D(2, padding='same')(ladder)
-ladder = Dropout(0.3)(ladder)
+past_in = Input(shape=(train_X_past.shape[1], train_X_past.shape[2]))
+past = Conv1D(128, 8, strides=1, padding='same', activation='relu')(past_in)
+past = MaxPooling1D(2, padding='same')(past)
+past = Dropout(0.7)(past)
+past = Conv1D(128, 8, strides=1, padding='same', activation='relu')(past)
+past = MaxPooling1D(2, padding='same')(past)
+past = Dropout(0.7)(past)
 
-ladder = Flatten()(ladder)
-ladder = Dense(units=32, activation='relu')(ladder)
-ladder = Dropout(0.3)(ladder)
-ladder = Dense(units=32, activation='relu')(ladder)
+past = Flatten()(past)
+past = Dense(units=64, activation='relu')(past)
+past = Dropout(0.7)(past)
+past = Dense(units=64, activation='relu')(past)
 
 # merged = concatenate([bids_layer, asks_layer])
 # merged = Dropout(0.5)(merged)
@@ -66,18 +62,18 @@ ladder = Dense(units=32, activation='relu')(ladder)
 # prediction = Dense(units=3, activation='softmax')(merged)
 # model = Model(inputs=[bids_layer_in, asks_layer_in], outputs=prediction)
 
-prediction = Dense(units=3, activation='softmax')(ladder)
+prediction = Dense(units=3, activation='softmax')(past)
 
-model = Model(inputs=ladder_in, outputs=prediction)
+model = Model(inputs=past_in, outputs=prediction)
 model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 
-model.summary()
+# model.summary()
 
 #
 # Training
 #
-model.fit(train_X_ladder, train_Y, validation_data=(test_X_ladder, test_Y), epochs=EPOCHS, callbacks=[
-    EarlyStopping(monitor='val_loss', patience=1),
+model.fit(train_X_past, train_Y, validation_split=0.2, epochs=EPOCHS, callbacks=[
+    EarlyStopping(monitor='val_loss', patience=0),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
 model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))

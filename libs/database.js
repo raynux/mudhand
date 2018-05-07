@@ -47,8 +47,48 @@ const Board = sequelize.define('board', {
   ]
 })
 
+const Ohlc = sequelize.define('ohlc', {
+  timestamp: {
+    type: Sequelize.DATE,
+    allowNull: false,
+    unique: true
+  },
+  open: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+  },
+  high: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+  },
+  low: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+  },
+  close: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+  },
+  volume: {
+    type: Sequelize.FLOAT,
+    allowNull: false,
+  },
+  future: {
+    type: Sequelize.INTEGER,
+    allowNull: true,
+  },
+}, {
+  timestamps: false,
+  indexes: [
+    {
+      fields: ['timestamp'],
+    }
+  ]
+})
+
 module.exports = {
   Sequelize,
   sequelize,
-  Board
+  Board,
+  Ohlc
 }
