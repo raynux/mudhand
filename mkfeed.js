@@ -1,24 +1,21 @@
 'use strict'
 const _ = require('lodash')
 const fs = require('fs-extra')
-const moment = require('moment')
+// const moment = require('moment')
 const {mergeLadders} = require('./libs/common')
-const {Sequelize, Board} = require('./libs/database')
+const {Sequelize, sequelize, Board} = require('./libs/database')
 const {Op} = Sequelize
 
-const TEST_RATIO = 4 // 25%
+const LADDER_PAST_BATCH = 10
 
 const FEED_DIR = './feed'
-const FEED_TRAIN = `${FEED_DIR}/train`
-const FEED_TRAIN_COUNT = `${FEED_DIR}/train_count`
-const FEED_TEST = `${FEED_DIR}/test`
-const FEED_TEST_COUNT = `${FEED_DIR}/test_count`
+const FEED_DATA = `${FEED_DIR}/data`
+const FEED_DATA_COUNT = `${FEED_DIR}/count`
 const FEED_NZ = `${FEED_DIR}/nz`
 const FEED_NZ_COUNT = `${FEED_DIR}/nz_count`
 
 const stats = {
   trainTotal: 0,
-  testTotal: 0,
   nzTotal: 0,
   0: 0,
   1: 0,
@@ -41,63 +38,55 @@ async function displayRecordCount() {
   console.log(`Drop   : ${drop} [ ${_.round(drop / total, 2)} ]`)
 }
 
-async function getTimestampRange() {
-  const results = []
-  const min = moment(await Board.min('timestamp'))
-  const max = moment(await Board.max('timestamp'))
-  const cursor = min.clone()
-
-  while(cursor.isBefore(max)) {
-
-    results.push([
-      cursor.clone().toDate(),
-      cursor.add(1, 'hours').toDate()
-    ])
-  }
-  return results
-}
-
 async function main() {
   await displayRecordCount()
-  const ranges = await getTimestampRange()
 
-  const trainWS = fs.createWriteStream(FEED_TRAIN, {defaultEncoding: 'utf8'})
-  const testWS = fs.createWriteStream(FEED_TEST, {defaultEncoding: 'utf8'})
+  const feedWS = fs.createWriteStream(FEED_DATA, {defaultEncoding: 'utf8'})
   const nzWS = fs.createWriteStream(FEED_NZ, {defaultEncoding: 'utf8'})
 
-  for(const range of ranges) {
+  const baseRecs = await Board.findAll({ 
+    attributes: ['future', 'timestamp'],
+    order: sequelize.random(),
+    limit: 1000
+  })
+
+
+  for(const base of baseRecs) {
+    const feed = {
+      future: base.future,
+      ladders: []
+    }
+
     const resp = await Board.findAll({
-      attributes: ['future', 'bids', 'asks'],
+      attributes: ['bids', 'asks'],
       where: {
         timestamp: {
-          [Op.between]: range
+          [Op.lte]: base.timestamp
         }
-      }
+      },
+      order: [
+        ['timestamp', 'DESC']
+      ],
+      limit: LADDER_PAST_BATCH
     })
+    if(resp.length != LADDER_PAST_BATCH) { continue }
 
     for(const rec of resp) {
-      const data = mergeLadders(rec.dataValues)
+      feed.ladders.push(mergeLadders(rec))
+    }
 
-      if(_.random(1000) % TEST_RATIO === 0) {
-        testWS.write(`${JSON.stringify(data)}\n`)
-        stats.testTotal += 1
-      }
-      else {
-        trainWS.write(`${JSON.stringify(data)}\n`)
-        stats[data.future] += 1
-        stats.trainTotal += 1
-      }
+    feedWS.write(`${JSON.stringify(feed)}\n`)
+    stats[feed.future] += 1
+    stats.trainTotal += 1
 
-      if(data.future != 0) {
-        nzWS.write(`${JSON.stringify(data)}\n`)
-        stats.nzTotal += 1
-      }
+    if(feed.future != 0) {
+      nzWS.write(`${JSON.stringify(feed)}\n`)
+      stats.nzTotal += 1
     }
   }
 
-  [trainWS, testWS].forEach((ws) => ws.end())
-  await fs.writeFile(FEED_TRAIN_COUNT, stats.trainTotal)
-  await fs.writeFile(FEED_TEST_COUNT, stats.testTotal)
+  [feedWS, nzWS].forEach((ws) => ws.end())
+  await fs.writeFile(FEED_DATA_COUNT, stats.trainTotal)
   await fs.writeFile(FEED_NZ_COUNT, stats.nzTotal)
 
   clearInterval(timer)

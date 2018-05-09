@@ -8,6 +8,7 @@ from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
 
 EPOCHS=20
+PAST_SEQ=10
 
 def get_batch_size(fname):
     with open(fname) as f:
@@ -15,69 +16,78 @@ def get_batch_size(fname):
 
 def load_feed(batch_size, fname):
     futures = np.empty((batch_size))
-    ladders = np.empty((batch_size, 1000, 2))
+
+    ladders = []
+    for n in range(0, PAST_SEQ):
+        ladders.append(np.empty((batch_size, 1000, 2), dtype='float32'))
 
     count = 0
     with open(fname) as f:
         line = f.readline()
         while line:
             rec = json.loads(line) 
+
+            for n in range(0, PAST_SEQ):
+                ladders[n][count] = rec['ladders'][n]
+
             futures[count] = rec['future']
-            ladders[count] = rec['ladder']
             count += 1
             line = f.readline()
     return (futures, ladders)
 
 
 print('Loading ....')
-train_batch_size = get_batch_size('./feed/train_count')
-test_batch_size = get_batch_size('./feed/test_count')
+batch_size = get_batch_size('./feed/count')
 
-(train_Y, train_X_ladder) = load_feed(train_batch_size, './feed/train')
+(train_Y, train_X) = load_feed(batch_size, './feed/data')
 train_Y = to_categorical(train_Y, num_classes=3)
 
-(test_Y, test_X_ladder) = load_feed(test_batch_size, './feed/test')
-test_Y = to_categorical(test_Y, num_classes=3)
-
-print(train_Y.shape)
-print(train_X_ladder.shape)
-print(test_Y.shape)
-print(test_X_ladder.shape)
+# print(train_Y.shape)
+# print(train_X.shape)
 
 #
 # Building Model
 #
-ladder_in = Input(shape=(train_X_ladder.shape[1], train_X_ladder.shape[2]))
-ladder = Conv1D(64, 8, strides=1, padding='same', activation='relu')(ladder_in)
-ladder = MaxPooling1D(2, padding='same')(ladder)
-ladder = Dropout(0.3)(ladder)
-ladder = Conv1D(64, 8, strides=1, padding='same', activation='relu')(ladder)
-ladder = MaxPooling1D(2, padding='same')(ladder)
-ladder = Dropout(0.3)(ladder)
+def mkLadderLayer(ladders):
+    layer_ins = []
+    layers = []
+    for n in range(0, PAST_SEQ):
+        layer_in = Input(shape=(ladders[n].shape[1], ladders[n].shape[2]))
+        layer = Conv1D(64, 8, strides=1, padding='same', activation='relu')(layer_in)
+        layer = MaxPooling1D(2, padding='same')(layer)
+        layer = Dropout(0.3)(layer)
+        layer = Conv1D(64, 8, strides=1, padding='same', activation='relu')(layer)
+        layer = MaxPooling1D(2, padding='same')(layer)
+        layer = Dropout(0.3)(layer)
+        layer = Flatten()(layer)
+        layer = Dense(units=32, activation='relu')(layer)
 
-ladder = Flatten()(ladder)
-ladder = Dense(units=32, activation='relu')(ladder)
-ladder = Dropout(0.3)(ladder)
-ladder = Dense(units=32, activation='relu')(ladder)
+        layer_ins.append(layer_in)
+        layers.append(layer)
+    return (layer_ins, layers)
 
-# merged = concatenate([bids_layer, asks_layer])
-# merged = Dropout(0.5)(merged)
-# merged = Dense(units=16, activation='relu')(merged)
-# prediction = Dense(units=3, activation='softmax')(merged)
-# model = Model(inputs=[bids_layer_in, asks_layer_in], outputs=prediction)
+(layer_ins, layers) = mkLadderLayer(train_X)
 
-prediction = Dense(units=3, activation='softmax')(ladder)
+merged = concatenate(layers)
+merged = Dense(units=16, activation='relu')(merged)
+merged = Dropout(0.5)(merged)
+merged = Dense(units=16, activation='relu')(merged)
+output_layer = Dense(units=3, activation='softmax')(merged)
 
-model = Model(inputs=ladder_in, outputs=prediction)
+# model = Model(inputs=tuple(layer_ins), outputs=output_layer)
+model = Model(inputs=layer_ins, outputs=output_layer)
 model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 
-model.summary()
+# model.summary()
 
 #
 # Training
 #
-model.fit(train_X_ladder, train_Y, validation_data=(test_X_ladder, test_Y), epochs=EPOCHS, callbacks=[
+# model.fit(train_X, train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
+#     EarlyStopping(monitor='val_loss', patience=1),
+#     TensorBoard(log_dir='./logs', histogram_freq=0)
+# )
+model.fit(train_X, train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
     EarlyStopping(monitor='val_loss', patience=1),
-    TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
 model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))
