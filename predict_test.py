@@ -5,13 +5,15 @@ from keras.utils import to_categorical
 
 model = load_model('./models/model.h5')
 
-def get_batch_size(fname):
+def get_num(fname):
     with open(fname) as f:
         return int(f.readline())
 
 def load_feed(batch_size, fname):
+    seq_len = get_num('./feed/seq')
+
     futures = np.empty((batch_size))
-    past = np.empty((batch_size, 60, 4))
+    past = np.empty((batch_size, seq_len, 3))
 
     count = 0
     with open(fname) as f:
@@ -26,7 +28,7 @@ def load_feed(batch_size, fname):
 
 
 print('Loading ....')
-batch_size = get_batch_size('./feed/count')
+batch_size = get_num('./feed/count')
 
 (train_Y, train_X_past) = load_feed(batch_size, './feed/data')
 train_Y = to_categorical(train_Y, num_classes=3)

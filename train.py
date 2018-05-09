@@ -8,19 +8,25 @@ from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
 
 EPOCHS=20
+PARAM_NUM=3
 
-def get_batch_size(fname):
+def get_num(fname):
     with open(fname) as f:
         return int(f.readline())
 
 def load_feed(batch_size, fname):
+    seq_len = get_num('./feed/seq')
+
     futures = np.empty((batch_size))
-    past = np.empty((batch_size, 60, 4))
+    past = np.empty((batch_size, seq_len, 3))
 
     count = 0
     with open(fname) as f:
         line = f.readline()
         while line:
+            if(count % 10000 == 0):
+                print(count)
+
             rec = json.loads(line) 
             futures[count] = rec['future']
             past[count] = rec['past']
@@ -30,7 +36,8 @@ def load_feed(batch_size, fname):
 
 
 print('Loading ....')
-batch_size = get_batch_size('./feed/count')
+
+batch_size = get_num('./feed/count')
 
 (train_Y, train_X_past) = load_feed(batch_size, './feed/data')
 print(train_Y.shape)
@@ -44,17 +51,20 @@ print(train_X_past.shape)
 # Building Model
 #
 past_in = Input(shape=(train_X_past.shape[1], train_X_past.shape[2]))
-past = Conv1D(128, 5, strides=1, padding='same', activation='relu')(past_in)
+past = Conv1D(64, 1, strides=1, padding='same', activation='relu')(past_in)
 past = MaxPooling1D(2, padding='same')(past)
-past = Dropout(0.7)(past)
-past = Conv1D(128, 5, strides=1, padding='same', activation='relu')(past)
+past = Dropout(0.2)(past)
+past = Conv1D(64, 1, strides=1, padding='same', activation='relu')(past)
 past = MaxPooling1D(2, padding='same')(past)
-past = Dropout(0.7)(past)
+past = Dropout(0.2)(past)
+past = Conv1D(64, 1, strides=1, padding='same', activation='relu')(past)
+past = MaxPooling1D(2, padding='same')(past)
+past = Dropout(0.2)(past)
 
 past = Flatten()(past)
 past = Dense(units=64, activation='relu')(past)
-past = Dropout(0.7)(past)
-past = Dense(units=64, activation='relu')(past)
+past = Dropout(0.2)(past)
+past = Dense(units=32, activation='relu')(past)
 
 # merged = concatenate([bids_layer, asks_layer])
 # merged = Dropout(0.5)(merged)
@@ -72,8 +82,8 @@ model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 #
 # Training
 #
-model.fit(train_X_past, train_Y, validation_split=0.2, epochs=EPOCHS, callbacks=[
-    EarlyStopping(monitor='val_loss', patience=0),
+model.fit(train_X_past, train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
+    EarlyStopping(monitor='val_loss', patience=5),
     TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
 model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))

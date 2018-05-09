@@ -5,11 +5,14 @@ const moment = require('moment')
 const {Sequelize, sequelize, Ohlc} = require('./libs/database')
 const {Op} = Sequelize
 
-const SEQ_RANGE = moment.duration(120, 'minutes')
+const SEQ_RANGE = moment.duration(60, 'minutes')
 
 const FEED_DIR = './feed'
 const FEED_DATA = `${FEED_DIR}/data`
 const FEED_COUNT = `${FEED_DIR}/count`
+const FEED_SEQ = `${FEED_DIR}/seq`
+const ROUND_DIGITS = 5
+const NORMALIZE_MAX = 1.13832
 
 const stats = {
   total: 0,
@@ -41,11 +44,16 @@ async function main() {
   const feedWS = fs.createWriteStream(FEED_DATA, {defaultEncoding: 'utf8'})
 
   const baseRecs = await Ohlc.findAll({
-    // limit: 1,
+    limit: 100000,
     order: sequelize.random()
   })
 
+
   for(const base of baseRecs) {
+    if(base.future === 0) {
+      if(_.sample([true, false])) { continue }
+    }
+
     if(_.isNull(base.future)) { continue }
 
     const pastRecs = await Ohlc.findAll({
@@ -65,22 +73,24 @@ async function main() {
     const past = _(pastRecs)
       .map((r) => {
         return [
-          r.open / base.open,
-          r.high / base.high,
-          r.low / base.low,
-          r.close / base.close,
-          // r.volume / 10000
+          // _.round(r.open / base.open / 1, ROUND_DIGITS),
+          _.round(r.high / r.open / NORMALIZE_MAX, ROUND_DIGITS),
+          _.round(r.low / r.open / NORMALIZE_MAX, ROUND_DIGITS),
+          _.round(r.close / base.close / NORMALIZE_MAX, ROUND_DIGITS),
         ]
       })
       .value()
 
     const data = {future: base.future, past}
     feedWS.write(`${JSON.stringify(data)}\n`)
+
+    stats[base.future] += 1
     stats.total += 1
   }
 
   feedWS.end()
   await fs.writeFile(FEED_COUNT, stats.total)
+  await fs.writeFile(FEED_SEQ, SEQ_RANGE.asMinutes())
 
   clearInterval(timer)
   process.exit(0)
