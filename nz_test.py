@@ -3,25 +3,32 @@ import numpy as np
 from keras.models import load_model
 from keras.utils import to_categorical
 
+PAST_SEQ=10
+
 def get_batch_size(fname):
     with open(fname) as f:
         return int(f.readline())
 
 def load_feed(batch_size, fname):
     futures = np.empty((batch_size))
-    ladders = np.empty((batch_size, 1000, 2))
+
+    ladders = []
+    for n in range(0, PAST_SEQ):
+        ladders.append(np.empty((batch_size, 1000, 2), dtype='float32'))
 
     count = 0
     with open(fname) as f:
         line = f.readline()
         while line:
             rec = json.loads(line) 
+
+            for n in range(0, PAST_SEQ):
+                ladders[n][count] = rec['ladders'][n]
+
             futures[count] = rec['future']
-            ladders[count] = rec['ladder']
             count += 1
             line = f.readline()
     return (futures, ladders)
-
 
 print('Loading ....')
 batch_size = get_batch_size('./feed/nz_count')

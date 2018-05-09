@@ -10,10 +10,11 @@ app = Flask(__name__)
 def predict():
     data = request.get_json()
 
-    ladder = [data['ladder']]
-    ladder = np.array(ladder)
+    ladders = []
+    for n in range(0, 10):
+        ladders.append(np.array([data['ladders'][n]], dtype='float32'))
 
-    result = model.predict(ladder, verbose=0)
+    result = model.predict(ladders, verbose=0)
     predicted = np.argmax(result[0]).tolist()
     return jsonify({"prediction": predicted})
 

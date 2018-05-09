@@ -4,6 +4,7 @@ const moment = require('moment')
 
 const MAX_BOARD_COUNT = 500
 const PRODUCT_CODE = 'FX_BTC_JPY'
+const LADDER_PAST_BATCH = 10
 
 const FUTURE_TYPE = {
   STABLE: 0,
@@ -50,6 +51,7 @@ module.exports = {
   PRODUCT_CODE,
   FUTURE_TYPE,
   FUTURE_RANGE,
+  LADDER_PAST_BATCH,
   MARGIN_THRESHOLD,
   fetchBoard,
   mergeLadders,

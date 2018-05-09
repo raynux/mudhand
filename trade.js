@@ -4,7 +4,7 @@ const axios = require('axios')
 const crypto = require('crypto')
 const moment = require('moment')
 const {
-  FUTURE_TYPE, MARGIN_THRESHOLD, PRODUCT_CODE,
+  FUTURE_TYPE, MARGIN_THRESHOLD, PRODUCT_CODE, LADDER_PAST_BATCH,
   bfReq, fetchBoard, mergeLadders
 } = require('./libs/common')
 const argv = require('yargs')
@@ -148,10 +148,26 @@ async function trade(boardData, prediction) {
 }
 
 async function main() {
+  const seqBuf = []
+
   const timer = setInterval(async () => {
     try {
       const boardData = await fetchBoard()
-      const {data} = await pdReq.post('/predict', mergeLadders(boardData))
+
+      seqBuf.push(mergeLadders(boardData))
+      if(seqBuf.length < LADDER_PAST_BATCH) {
+        console.log(`SEQ LEN ${seqBuf.length}`)
+        return
+      }
+      // if(seqBuf.length < LADDER_PAST_BATCH) {
+      //   _.times(10, () => {
+      //     seqBuf.push(mergeLadders(boardData))
+      //   })
+      // }
+      const ladders = _.take(_.reverse(seqBuf), LADDER_PAST_BATCH)
+      seqBuf.shift()
+
+      const {data} = await pdReq.post('/predict', {ladders})
       const {prediction} = data
 
       if(argv.d) {

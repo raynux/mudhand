@@ -2,11 +2,9 @@
 const _ = require('lodash')
 const fs = require('fs-extra')
 // const moment = require('moment')
-const {mergeLadders} = require('./libs/common')
+const {mergeLadders, LADDER_PAST_BATCH} = require('./libs/common')
 const {Sequelize, sequelize, Board} = require('./libs/database')
 const {Op} = Sequelize
-
-const LADDER_PAST_BATCH = 10
 
 const FEED_DIR = './feed'
 const FEED_DATA = `${FEED_DIR}/data`

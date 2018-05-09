@@ -53,10 +53,10 @@ def mkLadderLayer(ladders):
     layers = []
     for n in range(0, PAST_SEQ):
         layer_in = Input(shape=(ladders[n].shape[1], ladders[n].shape[2]))
-        layer = Conv1D(64, 8, strides=1, padding='same', activation='relu')(layer_in)
+        layer = Conv1D(32, 8, strides=1, padding='same', activation='relu')(layer_in)
         layer = MaxPooling1D(2, padding='same')(layer)
         layer = Dropout(0.3)(layer)
-        layer = Conv1D(64, 8, strides=1, padding='same', activation='relu')(layer)
+        layer = Conv1D(32, 8, strides=1, padding='same', activation='relu')(layer)
         layer = MaxPooling1D(2, padding='same')(layer)
         layer = Dropout(0.3)(layer)
         layer = Flatten()(layer)
@@ -69,7 +69,7 @@ def mkLadderLayer(ladders):
 (layer_ins, layers) = mkLadderLayer(train_X)
 
 merged = concatenate(layers)
-merged = Dense(units=16, activation='relu')(merged)
+merged = Dense(units=64, activation='relu')(merged)
 merged = Dropout(0.5)(merged)
 merged = Dense(units=16, activation='relu')(merged)
 output_layer = Dense(units=3, activation='softmax')(merged)
