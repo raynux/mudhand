@@ -45,7 +45,7 @@ async function main() {
   const baseRecs = await Board.findAll({ 
     attributes: ['future', 'timestamp'],
     order: sequelize.random(),
-    limit: 10000
+    limit: 20000
   })
 
 
