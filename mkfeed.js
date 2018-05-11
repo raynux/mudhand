@@ -40,11 +40,17 @@ async function displayRecordCount() {
 }
 
 async function main() {
-  await displayRecordCount()
+  await Ohlc.sync({alter: true})
+  // await displayRecordCount()
   const feedWS = fs.createWriteStream(FEED_DATA, {defaultEncoding: 'utf8'})
 
   const baseRecs = await Ohlc.findAll({
-    limit: 100000,
+    where: {
+      timestamp: {
+        [Op.gt]: moment('2017-11-27').toDate(),
+      }
+    },
+    limit: 10000,
     order: sequelize.random()
   })
 
@@ -73,10 +79,9 @@ async function main() {
     const past = _(pastRecs)
       .map((r) => {
         return [
-          // _.round(r.open / base.open / 1, ROUND_DIGITS),
-          _.round(r.high / r.open / NORMALIZE_MAX, ROUND_DIGITS),
-          _.round(r.low / r.open / NORMALIZE_MAX, ROUND_DIGITS),
-          _.round(r.close / base.close / NORMALIZE_MAX, ROUND_DIGITS),
+          _.round(r.close / base.close, ROUND_DIGITS),
+          _.round(r.high / r.close, ROUND_DIGITS),
+          _.round(r.low / r.close, ROUND_DIGITS),
         ]
       })
       .value()

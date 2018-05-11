@@ -57,6 +57,11 @@ async function main() {
 
   const resp = await Ohlc.findAll({
     // limit: 2,
+    where: {
+      timestamp: {
+        [Op.gt]: moment('2017-11-27').toDate(),
+      }
+    },
     order: ['timestamp']
   })
 
