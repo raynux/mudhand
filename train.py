@@ -2,7 +2,7 @@ import json
 import datetime
 import numpy as np
 from keras.models import  Model
-from keras.layers import Input, Dense, Flatten, Dropout, Conv1D, MaxPooling1D
+from keras.layers import Input, Dense, Flatten, Dropout, LSTM
 from keras.layers.merge import concatenate
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
@@ -51,26 +51,12 @@ print(train_X_past.shape)
 # Building Model
 #
 past_in = Input(shape=(train_X_past.shape[1], train_X_past.shape[2]))
-past = Conv1D(64, 1, strides=1, padding='same', activation='relu')(past_in)
-past = MaxPooling1D(2, padding='same')(past)
-past = Dropout(0.2)(past)
-past = Conv1D(64, 1, strides=1, padding='same', activation='relu')(past)
-past = MaxPooling1D(2, padding='same')(past)
-past = Dropout(0.2)(past)
-past = Conv1D(64, 1, strides=1, padding='same', activation='relu')(past)
-past = MaxPooling1D(2, padding='same')(past)
-past = Dropout(0.2)(past)
-
-past = Flatten()(past)
-past = Dense(units=64, activation='relu')(past)
-past = Dropout(0.2)(past)
+past = LSTM(128, return_sequences=True)(past_in)
+past = Dropout(0.3)(past)
+past = LSTM(128, return_sequences=False)(past_in)
 past = Dense(units=32, activation='relu')(past)
-
-# merged = concatenate([bids_layer, asks_layer])
-# merged = Dropout(0.5)(merged)
-# merged = Dense(units=16, activation='relu')(merged)
-# prediction = Dense(units=3, activation='softmax')(merged)
-# model = Model(inputs=[bids_layer_in, asks_layer_in], outputs=prediction)
+past = Dropout(0.3)(past)
+past = Dense(units=128, activation='relu')(past)
 
 prediction = Dense(units=3, activation='softmax')(past)
 
