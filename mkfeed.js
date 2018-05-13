@@ -50,7 +50,7 @@ async function main() {
         [Op.gt]: moment('2017-11-27').toDate(),
       }
     },
-    limit: 10000,
+    // limit: 10000,
     order: sequelize.random()
   })
 

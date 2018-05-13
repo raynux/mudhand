@@ -1,75 +1,55 @@
-import json
-import datetime
+import myenv
 import numpy as np
-from keras.models import  Model
-from keras.layers import Input, Dense, Flatten, Dropout, LSTM
-from keras.layers.merge import concatenate
-from keras.utils import to_categorical
-from keras.callbacks import EarlyStopping, TensorBoard
+import gym
 
-EPOCHS=20
-PARAM_NUM=3
+from keras.models import Sequential
+from keras.layers import Dense, Activation, Flatten
+from keras.optimizers import Adam
 
-def get_num(fname):
-    with open(fname) as f:
-        return int(f.readline())
-
-def load_feed(batch_size, fname):
-    seq_len = get_num('./feed/seq')
-
-    futures = np.empty((batch_size))
-    past = np.empty((batch_size, seq_len, 3))
-
-    count = 0
-    with open(fname) as f:
-        line = f.readline()
-        while line:
-            if(count % 10000 == 0):
-                print(count)
-
-            rec = json.loads(line) 
-            futures[count] = rec['future']
-            past[count] = rec['past']
-            count += 1
-            line = f.readline()
-    return (futures, past)
+from rl.agents.dqn import DQNAgent
+from rl.policy import BoltzmannQPolicy
+from rl.memory import SequentialMemory
 
 
-print('Loading ....')
+ENV_NAME = 'Market-v0'
 
-batch_size = get_num('./feed/count')
 
-(train_Y, train_X_past) = load_feed(batch_size, './feed/data')
-print(train_Y.shape)
-print(train_Y)
-train_Y = to_categorical(train_Y, num_classes=3)
+# Get the environment and extract the number of actions.
+env = gym.make(ENV_NAME)
+# np.random.seed(123)
+# env.seed(123)
+nb_actions = env.action_space.n
 
-print(train_Y.shape)
-print(train_X_past.shape)
+print(env.observation_space)
 
-#
-# Building Model
-#
-past_in = Input(shape=(train_X_past.shape[1], train_X_past.shape[2]))
-past = LSTM(128, return_sequences=True)(past_in)
-past = Dropout(0.3)(past)
-past = LSTM(128, return_sequences=False)(past_in)
-past = Dense(units=32, activation='relu')(past)
-past = Dropout(0.3)(past)
-past = Dense(units=128, activation='relu')(past)
+# Next, we build a very simple model.
+model = Sequential()
+model.add(Flatten(input_shape=(1,) + env.observation_space.shape))
+model.add(Dense(16))
+model.add(Activation('relu'))
+model.add(Dense(16))
+model.add(Activation('relu'))
+model.add(Dense(16))
+model.add(Activation('relu'))
+model.add(Dense(nb_actions))
+model.add(Activation('linear'))
+print(model.summary())
 
-prediction = Dense(units=3, activation='softmax')(past)
+# Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
+# even the metrics!
+memory = SequentialMemory(limit=50000, window_length=1)
+policy = BoltzmannQPolicy()
+dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=10,
+               target_model_update=1e-2, policy=policy)
+dqn.compile(Adam(lr=1e-3), metrics=['mae'])
 
-model = Model(inputs=past_in, outputs=prediction)
-model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
+# Okay, now it's time to learn something! We visualize the training here for show, but this
+# slows down training quite a lot. You can always safely abort the training prematurely using
+# Ctrl + C.
+dqn.fit(env, nb_steps=10000, visualize=True, verbose=2)
 
-# model.summary()
+# After training is done, we save the final weights.
+dqn.save_weights('models/dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
 
-#
-# Training
-#
-model.fit(train_X_past, train_Y, validation_split=0.3, epochs=EPOCHS, callbacks=[
-    EarlyStopping(monitor='val_loss', patience=5),
-    TensorBoard(log_dir='./logs', histogram_freq=0)
-])
-model.save(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5'))
+# Finally, evaluate our algorithm for 5 episodes.
+dqn.test(env, nb_episodes=100, visualize=True)
