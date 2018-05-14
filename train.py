@@ -53,14 +53,15 @@ dqn.compile(Adam(lr=1e-3), metrics=['mae'])
 
 
 if args.mode == 'train':
-  dqn.fit(env, nb_steps=100000, visualize=True, verbose=1)
+  dqn.fit(env, nb_steps=200000, visualize=True, verbose=1)
   dqn.save_weights(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5f'))
   dqn.save_weights('./models/model.h5f')
 
 elif args.mode == 'continue':
   dqn.load_weights('./models/model.h5f')
-  dqn.fit(env, nb_steps=100000, visualize=True, verbose=1)
+  dqn.fit(env, nb_steps=200000, visualize=True, verbose=1)
   dqn.save_weights(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5f'))
+  dqn.save_weights('./models/model.h5f')
 
 elif args.mode == 'test':
-  dqn.test(env, nb_episodes=10, visualize=True)
+  dqn.test(env, nb_episodes=10, visualize=False)
