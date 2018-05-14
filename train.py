@@ -5,8 +5,9 @@ import datetime
 import argparse
 
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten
+from keras.layers import Dense, Flatten
 from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping, TensorBoard
 
 from rl.agents.dqn import DQNAgent
 from rl.policy import BoltzmannQPolicy
@@ -15,9 +16,10 @@ from rl.memory import SequentialMemory
 parser = argparse.ArgumentParser()
 parser.add_argument('--mode', choices=['train', 'continue', 'test'], default='train')
 # parser.add_argument('--env-name', type=str, default='BreakoutDeterministic-v4')
-parser.add_argument('--weights', type=str, default=None)
+# parser.add_argument('--weights', type=str, default=None)
 args = parser.parse_args()
 
+STEPS = 50000
 
 ENV_NAME = 'Market-v0'
 
@@ -33,35 +35,33 @@ print(env.observation_space)
 # Next, we build a very simple model.
 model = Sequential()
 model.add(Flatten(input_shape=(1,) + env.observation_space.shape))
-model.add(Dense(64))
-model.add(Activation('relu'))
-model.add(Dense(64))
-model.add(Activation('relu'))
-model.add(Dense(64))
-model.add(Activation('relu'))
-model.add(Dense(nb_actions))
-model.add(Activation('relu'))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(nb_actions, activation='linear'))
 print(model.summary())
 
 # Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
 # even the metrics!
-memory = SequentialMemory(limit=50000, window_length=1)
+memory = SequentialMemory(limit=STEPS, window_length=1)
 policy = BoltzmannQPolicy()
 dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=60,
-               target_model_update=1e-2, policy=policy)
+               target_model_update=1e-2, policy=policy, enable_dueling_network=True, dueling_type='avg')
 dqn.compile(Adam(lr=1e-3), metrics=['mae'])
 
 
-if args.mode == 'train':
-  dqn.fit(env, nb_steps=200000, visualize=True, verbose=1)
-  dqn.save_weights(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5f'))
-  dqn.save_weights('./models/model.h5f')
+def fit_and_save(agent):
+  agent.fit(env, nb_steps=STEPS, visualize=False, verbose=1, callbacks=[
+    # TensorBoard(log_dir='./logs', histogram_freq=0)
+  ])
+  agent.save_weights(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5f'))
+  agent.save_weights('./models/model.h5f', overwrite=True)
 
-elif args.mode == 'continue':
+if args.mode == 'test':
   dqn.load_weights('./models/model.h5f')
-  dqn.fit(env, nb_steps=200000, visualize=True, verbose=1)
-  dqn.save_weights(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5f'))
-  dqn.save_weights('./models/model.h5f')
-
-elif args.mode == 'test':
+  dqn.test(env, nb_episodes=10, visualize=False)
+else:
+  if args.mode == 'continue':
+    dqn.load_weights('./models/model.h5f')
+  fit_and_save(dqn)
   dqn.test(env, nb_episodes=10, visualize=False)

@@ -6,7 +6,7 @@ import pandas as pd
 OHLC_CSV = './feed/data.csv'
 INVALID_CHOICE_REWARD = 0
 NO_TRADE_REWARD = 0
-NOOP_REWARD = -10
+NOOP_REWARD = 0
 DECISION_REWARD = 0
 
 class Position():
@@ -74,8 +74,8 @@ class Position():
 class Market(gym.Env):
   metadata = {'render.modes': ['human']}
 
-  SEQ_LEN = 120
-  VISIBLE_LEN = 60
+  SEQ_LEN = 180
+  VISIBLE_LEN = 120
   HIGH = 2500000
 
   STAY = 0
@@ -109,7 +109,7 @@ class Market(gym.Env):
       reward = self.position.sell(current_price)
     elif action == self.CLOSE:
       reward = self.position.close(current_price)
-      self.done = True
+      # self.done = True
     # else:   # STAY
     #   print('STAY [ ' + str(self.seq_index) + ' ] : ' + str(current_price))
 
