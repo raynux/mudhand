@@ -40,7 +40,7 @@ class Market(gym.Env):
     self.pos_state = np.zeros(self.SEQ_LEN)
 
     self.action_space = spaces.Discrete(3) 
-    self.observation_space = spaces.Box(low=0, high=10, shape=(2, self.SEQ_LEN), dtype=np.int8)
+    self.observation_space = spaces.Box(low=0, high=10, shape=(2, self.SEQ_LEN), dtype=np.float)
     self.reset()
 
   def reset(self):
@@ -91,4 +91,4 @@ class Market(gym.Env):
       self.pos_state[0] = 1
       self.pos_state[1] = self.position
 
-    return np.array([visible_seq, self.pos_state], dtype=np.int8)
+    return [visible_seq, self.pos_state]
