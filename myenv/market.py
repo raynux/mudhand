@@ -1,6 +1,13 @@
 import gym
 import numpy as np
 import gym.spaces as spaces
+import pandas as pd
+
+OHLC_CSV = './feed/data.csv'
+INVALID_CHOICE_REWARD = 0
+NO_TRADE_REWARD = 0
+NOOP_REWARD = -10
+DECISION_REWARD = 0
 
 class Position():
   POS_BOOL_INDEX = 0
@@ -10,119 +17,110 @@ class Position():
   LONG_POSITION = 1
   SHORT_POSITION = 2
 
-  INVALID_REWARD = -100
-
-  def __init__(self, SEQ_LEN):
-    self.SEQ_LEN = SEQ_LEN
+  def __init__(self, shape):
+    self.shape = shape
     self.reset()
 
   def buy(self, price):
-    if self.has_short_position():   # clear position
-      reward = self.position_price() - price
-      self.set_position(self.NO_POSITION)
-      return reward
-    elif self.has_no_position():    # get a long position
-      self.set_position(self.LONG_POSITION, price)
-      return 0
+    if self.has_position():
+      return INVALID_CHOICE_REWARD  # invalid operation
 
-    return self.INVALID_REWARD  # invalid operation
+    self.set_position(self.LONG_POSITION, price)
+    return DECISION_REWARD
 
   def sell(self, price):
-    if self.has_long_position():  # clear position
-      reward = price - self.position_price()
+    if self.has_position():
+      return INVALID_CHOICE_REWARD  # invalid operation
+
+    self.set_position(self.SHORT_POSITION, price)
+    return DECISION_REWARD
+
+  def close(self, price):
+    if self.has_long_position():
+      reward = self.position_price() - price
+      reward += DECISION_REWARD
+      # print('BUY : ' + str(reward) + ' : ' + str(self.position_price()) + ' : ' + str(price))
       self.set_position(self.NO_POSITION)
       return reward
-    elif self.has_no_position():    # get a long position
-      self.set_position(self.LONG_POSITION, price)
-      return 0
+    elif self.has_short_position():
+      reward = price - self.position_price()
+      reward += DECISION_REWARD
+      # print('SELL : ' + str(reward) + ' : ' + str(self.position_price()) + ' : ' + str(price))
+      self.set_position(self.NO_POSITION)
+      return reward
 
-    return self.INVALID_REWARD  # invalid operation
+    return INVALID_CHOICE_REWARD  # invalid operation
 
   def reset(self):
-    self.state = np.zeros(self.SEQ_LEN)
+    self.state = np.zeros(self.shape)
 
   def position_price(self):
-    return self.state[self.POS_PRICE_INDEX]
+    return int(self.state[0][self.POS_PRICE_INDEX])
 
   def set_position(self, pos_type, price=0):
-    self.state[self.POS_BOOL_INDEX] = pos_type
-    self.state[self.POS_PRICE_INDEX] = price
+    self.state[0][self.POS_BOOL_INDEX] = pos_type
+    self.state[0][self.POS_PRICE_INDEX] = price
 
-  def has_no_position(self):
-    return (self.state[self.POS_BOOL_INDEX] == self.NO_POSITION)
+  def has_position(self):
+    return (self.state[0][self.POS_BOOL_INDEX] != self.NO_POSITION)
 
   def has_long_position(self):
-    return (self.state[self.POS_BOOL_INDEX] == self.LONG_POSITION)
+    return (self.state[0][self.POS_BOOL_INDEX] == self.LONG_POSITION)
 
   def has_short_position(self):
-    return (self.state[self.POS_BOOL_INDEX] == self.SHORT_POSITION)
+    return (self.state[0][self.POS_BOOL_INDEX] == self.SHORT_POSITION)
 
 
 class Market(gym.Env):
   metadata = {'render.modes': ['human']}
 
-  HIST = np.array([
-    0,1,2,3,4,6,8,3,2,1,
-    0,1,2,3,4,4,8,3,2,1,
-    0,1,2,3,4,9,3,3,2,1,
-    0,1,2,3,4,5,3,3,2,1,
-    0,1,2,3,4,6,3,3,2,1,
-    0,1,2,3,6,7,4,3,2,1,
-    0,1,2,3,5,8,4,3,2,1,
-    0,1,2,3,4,5,4,3,2,1,
-    0,1,2,3,4,6,4,3,2,1,
-    0,1,2,3,4,5,4,3,2,1,
-    0,1,2,3,4,7,4,3,2,1,
-    0,1,2,3,4,5,4,3,2,1,
-    0,1,2,3,3,8,9,3,2,1,
-    0,1,2,3,4,5,6,3,2,1,
-    0,1,2,3,4,7,4,3,2,1,
-    0,1,2,3,3,5,3,3,2,1,
-    0,1,2,3,3,9,6,3,2,1,
-    0,1,2,3,4,5,4,3,2,1,
-    0,1,2,3,3,3,4,3,2,1,
-    0,1,2,3,6,8,7,3,2,1,
-  ])
-  SEQ_LEN = 5
+  SEQ_LEN = 120
+  VISIBLE_LEN = 60
+  HIGH = 2500000
 
   STAY = 0
   BUY = 1
   SELL = 2
+  CLOSE = 3
 
   def __init__(self):
     super().__init__()
 
-    self.HIST_LEN = self.HIST.shape[0]
-    self.position = Position(self.SEQ_LEN)
+    self.feed = pd.read_csv(OHLC_CSV)
+    self.position = Position((self.VISIBLE_LEN, self.feed.shape[1]))
 
-    self.action_space = spaces.Discrete(3) 
-    self.observation_space = spaces.Box(low=0, high=10, shape=(2, self.SEQ_LEN), dtype=np.int32)
+    self.action_space = spaces.Discrete(4) 
+    self.observation_space = spaces.Box(low=0, high=self.HIGH, shape=(2, self.VISIBLE_LEN, self.feed.shape[1]), dtype=np.int32)
     self.reset()
 
   def reset(self):
     self.done = False
-    self.seq_index = 0
+    self.init_seq()
     self.position.reset()
-
-    self.step_decition = 0
-    self.step_reward = 0
     return self._observe()
 
   def step(self, action):
-    current_price = self.HIST[self.seq_index + self.SEQ_LEN]
-    reward = 0
+    current_price = self.current_price()
+    reward = NOOP_REWARD
 
     if action == self.BUY:
       reward = self.position.buy(current_price)
     elif action == self.SELL:
       reward = self.position.sell(current_price)
+    elif action == self.CLOSE:
+      reward = self.position.close(current_price)
+      self.done = True
+    # else:   # STAY
+    #   print('STAY [ ' + str(self.seq_index) + ' ] : ' + str(current_price))
 
-    self.step_decition = action
-    self.step_reward = reward
     self.seq_index += 1
 
-    if self.seq_index >= self.HIST_LEN - self.SEQ_LEN:
+    if self.seq_index >= self.SEQ_LEN - self.VISIBLE_LEN:
+      reward = NO_TRADE_REWARD
       self.done = True
+
+    # if reward > 0:
+    #   print(str(action) + ' : ' + str(current_price) + ' : ' + str(reward))
 
     return self._observe(), reward, self.done, {}
 
@@ -133,5 +131,13 @@ class Market(gym.Env):
     pass
 
   def _observe(self):
-    visible_seq = self.HIST[self.seq_index:self.seq_index + self.SEQ_LEN]
+    visible_seq = np.array(self.seq[self.seq_index:self.seq_index + self.VISIBLE_LEN], dtype=np.int32)
     return np.array([visible_seq, self.position.state], dtype=np.int32)
+
+  def init_seq(self):
+    self.seq_index = 0
+    start_pos = np.random.randint(self.feed.shape[0] - self.SEQ_LEN)
+    self.seq = self.feed.loc[start_pos:start_pos + self.SEQ_LEN]
+
+  def current_price(self):
+    return self.seq.iloc[self.seq_index + self.VISIBLE_LEN].close

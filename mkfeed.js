@@ -44,14 +44,13 @@ async function main() {
   // await displayRecordCount()
   const feedWS = fs.createWriteStream(FEED_DATA, {defaultEncoding: 'utf8'})
 
-  const baseRecs = await Ohlc.findAll({
+  const recs = await Ohlc.findAll({
     where: {
       timestamp: {
         [Op.gt]: moment('2017-11-27').toDate(),
       }
     },
-    // limit: 10000,
-    order: sequelize.random()
+    order: 'timestamp'
   })
 
 
@@ -63,6 +62,7 @@ async function main() {
     if(_.isNull(base.future)) { continue }
 
     const pastRecs = await Ohlc.findAll({
+      attributes: ['timestamp', 'open', 'high', 'low', 'close'],
       where: {
         timestamp: {
           [Op.between]: [
