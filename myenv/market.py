@@ -10,7 +10,7 @@ class Position():
   LONG_POSITION = 1
   SHORT_POSITION = 2
 
-  INVALID_REWARD = -100000
+  INVALID_REWARD = -100
 
   def __init__(self, SEQ_LEN):
     self.SEQ_LEN = SEQ_LEN
@@ -62,26 +62,26 @@ class Market(gym.Env):
   metadata = {'render.modes': ['human']}
 
   HIST = np.array([
-    0,1,2,3,4,6,4,3,2,1,
-    0,1,2,3,4,8,4,3,2,1,
-    0,1,2,3,4,9,4,3,2,1,
+    0,1,2,3,4,6,8,3,2,1,
+    0,1,2,3,4,4,8,3,2,1,
+    0,1,2,3,4,9,3,3,2,1,
+    0,1,2,3,4,5,3,3,2,1,
+    0,1,2,3,4,6,3,3,2,1,
+    0,1,2,3,6,7,4,3,2,1,
+    0,1,2,3,5,8,4,3,2,1,
     0,1,2,3,4,5,4,3,2,1,
     0,1,2,3,4,6,4,3,2,1,
-    0,1,2,3,4,7,4,3,2,1,
-    0,1,2,3,4,8,4,3,2,1,
-    0,1,2,3,4,5,4,3,2,1,
-    0,1,2,3,4,6,4,3,2,1,
-    0,1,2,3,4,5,4,3,2,1,
-    0,1,2,3,4,7,4,3,2,1,
-    0,1,2,3,4,5,4,3,2,1,
-    0,1,2,3,4,8,4,3,2,1,
     0,1,2,3,4,5,4,3,2,1,
     0,1,2,3,4,7,4,3,2,1,
     0,1,2,3,4,5,4,3,2,1,
-    0,1,2,3,4,9,4,3,2,1,
+    0,1,2,3,3,8,9,3,2,1,
+    0,1,2,3,4,5,6,3,2,1,
+    0,1,2,3,4,7,4,3,2,1,
+    0,1,2,3,3,5,3,3,2,1,
+    0,1,2,3,3,9,6,3,2,1,
     0,1,2,3,4,5,4,3,2,1,
-    0,1,2,3,4,6,4,3,2,1,
-    0,1,2,3,4,5,4,3,2,1,
+    0,1,2,3,3,3,4,3,2,1,
+    0,1,2,3,6,8,7,3,2,1,
   ])
   SEQ_LEN = 5
 
@@ -103,6 +103,9 @@ class Market(gym.Env):
     self.done = False
     self.seq_index = 0
     self.position.reset()
+
+    self.step_decition = 0
+    self.step_reward = 0
     return self._observe()
 
   def step(self, action):
@@ -114,6 +117,8 @@ class Market(gym.Env):
     elif action == self.SELL:
       reward = self.position.sell(current_price)
 
+    self.step_decition = action
+    self.step_reward = reward
     self.seq_index += 1
 
     if self.seq_index >= self.HIST_LEN - self.SEQ_LEN:
@@ -123,7 +128,8 @@ class Market(gym.Env):
 
 
   def render(self, mode='human', close=False):
-    # print(self.position)
+    # if self.step_decition != self.STAY:
+    #   print('[ ' + str(self.step_decition) + ' ] ' + str(self.step_reward))
     pass
 
   def _observe(self):
