@@ -19,7 +19,8 @@ parser.add_argument('--mode', choices=['train', 'continue', 'test'], default='tr
 # parser.add_argument('--weights', type=str, default=None)
 args = parser.parse_args()
 
-STEPS = 50000
+STEPS = 10000
+WINDOW_LENGTH = 1
 
 ENV_NAME = 'Market-v0'
 
@@ -35,15 +36,15 @@ print(env.observation_space)
 # Next, we build a very simple model.
 model = Sequential()
 model.add(Flatten(input_shape=(1,) + env.observation_space.shape))
-model.add(Dense(32, activation='relu'))
-model.add(Dense(32, activation='relu'))
-model.add(Dense(32, activation='relu'))
-model.add(Dense(nb_actions, activation='linear'))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(nb_actions, activation='tanh'))
 print(model.summary())
 
 # Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
 # even the metrics!
-memory = SequentialMemory(limit=STEPS, window_length=1)
+memory = SequentialMemory(limit=STEPS, window_length=WINDOW_LENGTH)
 policy = BoltzmannQPolicy()
 dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=60,
                target_model_update=1e-2, policy=policy, enable_dueling_network=True, dueling_type='avg')

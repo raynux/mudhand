@@ -6,7 +6,7 @@ import pandas as pd
 OHLC_CSV = './feed/data.csv'
 INVALID_CHOICE_REWARD = 0
 NO_TRADE_REWARD = 0
-NOOP_REWARD = 0
+NOOP_REWARD = -10
 DECISION_REWARD = 0
 
 class Position():
@@ -74,8 +74,8 @@ class Position():
 class Market(gym.Env):
   metadata = {'render.modes': ['human']}
 
-  SEQ_LEN = 180
-  VISIBLE_LEN = 120
+  SEQ_LEN = 300
+  VISIBLE_LEN = 60
   HIGH = 2500000
 
   STAY = 0
