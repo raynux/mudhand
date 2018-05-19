@@ -19,7 +19,7 @@ parser.add_argument('--mode', choices=['train', 'continue', 'test'], default='tr
 # parser.add_argument('--weights', type=str, default=None)
 args = parser.parse_args()
 
-STEPS = 10000
+STEPS = 100000
 WINDOW_LENGTH = 1
 
 ENV_NAME = 'Market-v0'

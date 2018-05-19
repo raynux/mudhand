@@ -3,7 +3,8 @@ import numpy as np
 import gym.spaces as spaces
 import pandas as pd
 
-OHLC_CSV = './feed/data.csv'
+X_NPZ = './feed/x.npz'
+Y_NPZ = './feed/y.npz'
 INVALID_CHOICE_REWARD = 0
 NO_TRADE_REWARD = 0
 NOOP_REWARD = -10
@@ -74,9 +75,9 @@ class Position():
 class Market(gym.Env):
   metadata = {'render.modes': ['human']}
 
-  SEQ_LEN = 300
+  SEQ_LEN = 240
   VISIBLE_LEN = 60
-  HIGH = 2500000
+  HIGH = 100
 
   STAY = 0
   BUY = 1
@@ -86,11 +87,12 @@ class Market(gym.Env):
   def __init__(self):
     super().__init__()
 
-    self.feed = pd.read_csv(OHLC_CSV)
-    self.position = Position((self.VISIBLE_LEN, self.feed.shape[1]))
+    self.x = np.load(X_NPZ)['arr_0']
+    self.y = np.load(Y_NPZ)['arr_0']
+    self.position = Position((self.VISIBLE_LEN, self.x.shape[1]))
 
     self.action_space = spaces.Discrete(4) 
-    self.observation_space = spaces.Box(low=0, high=self.HIGH, shape=(2, self.VISIBLE_LEN, self.feed.shape[1]), dtype=np.int32)
+    self.observation_space = spaces.Box(low=0, high=self.HIGH, shape=(2, self.VISIBLE_LEN, self.x.shape[1]), dtype=np.float32)
     self.reset()
 
   def reset(self):
@@ -131,13 +133,13 @@ class Market(gym.Env):
     pass
 
   def _observe(self):
-    visible_seq = np.array(self.seq[self.seq_index:self.seq_index + self.VISIBLE_LEN], dtype=np.int32)
-    return np.array([visible_seq, self.position.state], dtype=np.int32)
+    visible_seq = np.array(self.seq[self.seq_index:self.seq_index + self.VISIBLE_LEN], dtype=np.float32)
+    return np.array([visible_seq, self.position.state], dtype=np.float32)
 
   def init_seq(self):
     self.seq_index = 0
-    start_pos = np.random.randint(self.feed.shape[0] - self.SEQ_LEN)
-    self.seq = self.feed.loc[start_pos:start_pos + self.SEQ_LEN]
+    start_pos = np.random.randint(self.x.shape[0] - self.SEQ_LEN)
+    self.seq = self.x[start_pos:start_pos + self.SEQ_LEN]
 
   def current_price(self):
-    return self.seq.iloc[self.seq_index + self.VISIBLE_LEN].close
+    return self.y[self.seq_index + self.VISIBLE_LEN]
