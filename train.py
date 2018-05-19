@@ -52,7 +52,6 @@ dqn.compile(Adam(), metrics=['mae'])
 
 
 def fit_and_save(agent):
-  fpath = './models/weights.{val_loss:.2f}-{val_acc:.2f}.hdf5'
   agent.fit(env, nb_steps=STEPS, visualize=False, verbose=1, callbacks=[
     # TensorBoard(log_dir='./logs', histogram_freq=0),
   ])
