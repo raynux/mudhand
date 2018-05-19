@@ -5,9 +5,9 @@ import pandas as pd
 
 X_NPZ = './feed/x.npz'
 Y_NPZ = './feed/y.npz'
-INVALID_CHOICE_REWARD = 0
-NO_TRADE_REWARD = 0
-NOOP_REWARD = -10
+INVALID_CHOICE_REWARD = -10
+NO_TRADE_REWARD = -1000
+NOOP_REWARD = 0
 DECISION_REWARD = 0
 
 class Position():

@@ -48,12 +48,13 @@ memory = SequentialMemory(limit=STEPS, window_length=WINDOW_LENGTH)
 policy = BoltzmannQPolicy()
 dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=60,
                target_model_update=1e-2, policy=policy, enable_dueling_network=True, dueling_type='avg')
-dqn.compile(Adam(lr=1e-3), metrics=['mae'])
+dqn.compile(Adam(), metrics=['mae'])
 
 
 def fit_and_save(agent):
+  fpath = './models/weights.{val_loss:.2f}-{val_acc:.2f}.hdf5'
   agent.fit(env, nb_steps=STEPS, visualize=False, verbose=1, callbacks=[
-    # TensorBoard(log_dir='./logs', histogram_freq=0)
+    # TensorBoard(log_dir='./logs', histogram_freq=0),
   ])
   agent.save_weights(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5f'))
   agent.save_weights('./models/model.h5f', overwrite=True)
@@ -65,4 +66,4 @@ else:
   if args.mode == 'continue':
     dqn.load_weights('./models/model.h5f')
   fit_and_save(dqn)
-  dqn.test(env, nb_episodes=10, visualize=False)
+  dqn.test(env, nb_episodes=20, visualize=False)
