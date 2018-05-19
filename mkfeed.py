@@ -2,9 +2,6 @@ import numpy as np
 import pandas as pd
 import talib
 from scipy.stats import zscore
-from matplotlib import pyplot
-
-FUTURE_RANGE = 10
 
 df = pd.read_csv('./feed/orig.csv', index_col='Timestamp', usecols=['Timestamp', 'Open', 'High', 'Low', 'Close'])
 # df = df[370000:375000]
@@ -29,16 +26,34 @@ df['sma60Diff'] = df['Close'] / df['sma60']
 df['bbl5Diff']  = df['Close'] / df['bbl5']
 df['bbl15Diff'] = df['Close'] / df['bbl15']
 df['bbl60Diff'] = df['Close'] / df['bbl60']
-
-# for idx in df.shape[0] - FUTURE_RANGE:
-#   pass
-
-
 df = df[60:]
 
+FUTURE_RANGE = 10
+THRESHOLD = 0.03
+st = {'buy': 0, 'sell': 0}
+y = np.zeros(df.shape[0], dtype=np.int8)
+closes = df['Close'].values
+for i in range(len(closes) - FUTURE_RANGE):
+  base_price = closes[i]
+  diff = 0
+  for j in range(1, FUTURE_RANGE):
+    diff += (closes[i+j] / base_price) - 1
+    # print(diff)
+    if diff >= THRESHOLD:
+      y[i] = 1
+      st['buy'] += 1
+      break
+    if diff <= -THRESHOLD:
+      y[i] = 2
+      st['sell'] += 1
+      break
+
+np.savetxt('./feed/y_cls.csv', y, fmt='%i', delimiter=',')
+np.savez('./feed/y_cls.npz', y)
+
 y = df['Close'].values
-np.savetxt('./feed/y.csv', y, fmt='%0.8f', delimiter=',')
-np.savez('./feed/y.npz', y)
+np.savetxt('./feed/y_val.csv', y, fmt='%0.8f', delimiter=',')
+np.savez('./feed/y_val.npz', y)
 
 x = np.array([
   zscore(df['closeDiff'].values),
@@ -60,41 +75,3 @@ x = np.array([
 x = x.transpose()
 np.savetxt('./feed/x.csv', x, fmt='%0.8f', delimiter=',')
 np.savez('./feed/x.npz', x)
-
-
-# df['nClose'] = zscore(df['closeDiff'].values)
-# df['nHigh']  = zscore(df['highDiff'].values)
-# df['nLow']   = zscore(df['lowDiff'].values)
-# df['nBbu5']  = zscore(df['bbu5Diff'].values)
-# df['nBbu15'] = zscore(df['bbu15Diff'].values)
-# df['nBbu60'] = zscore(df['bbu60Diff'].values)
-# df['nSma5']  = zscore(df['sma5Diff'].values)
-# df['nSma15'] = zscore(df['sma15Diff'].values)
-# df['nSma60'] = zscore(df['sma60Diff'].values)
-# df['nBbl5']  = zscore(df['bbl5Diff'].values)
-# df['nBbl15'] = zscore(df['bbl15Diff'].values)
-# df['nBbl60'] = zscore(df['bbl60Diff'].values)
-
-# df.to_csv('./feed/pre.csv')
-
-
-
-# pyplot.close()
-# pp  = pyplot.plot(df.index, (df['Close']))
-# p5u = pyplot.plot(df.index, df['bbu5'], linestyle='dashed')
-# p5m = pyplot.plot(df.index, df['sma5'], linestyle='dashed')
-# p5l = pyplot.plot(df.index, df['bbl5'], linestyle='dashed')
-
-# p15u = pyplot.plot(df.index, df['bbu15'], linestyle='dashed')
-# p15m = pyplot.plot(df.index, df['sma15'], linestyle='dashed')
-# p15l = pyplot.plot(df.index, df['bbl15'], linestyle='dashed')
-
-# p60  = pyplot.plot(df.index, df['bbu60'], linestyle='dashed')
-# p60m = pyplot.plot(df.index, df['sma60'], linestyle='dashed')
-# p60l = pyplot.plot(df.index, df['bbl60'], linestyle='dashed')
-
-
-# pyplot.legend((pp[0], p5u[0], p5m[0], p5l[0]), ('Price', 'BB UPPER', 'SMA', 'BB LOWER'), loc=2)
-# pyplot.grid(True)
-
-# pyplot.show()

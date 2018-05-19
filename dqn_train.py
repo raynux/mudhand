@@ -23,6 +23,7 @@ STEPS = 100000
 WINDOW_LENGTH = 1
 
 ENV_NAME = 'Market-v0'
+MODEL_DIR = './dqn_model'
 
 
 # Get the environment and extract the number of actions.
@@ -52,18 +53,17 @@ dqn.compile(Adam(), metrics=['mae'])
 
 
 def fit_and_save(agent):
-  fpath = './models/weights.{val_loss:.2f}-{val_acc:.2f}.hdf5'
   agent.fit(env, nb_steps=STEPS, visualize=False, verbose=1, callbacks=[
     # TensorBoard(log_dir='./logs', histogram_freq=0),
   ])
-  agent.save_weights(datetime.datetime.now().strftime('./models/%Y%m%d-%H%M.h5f'))
-  agent.save_weights('./models/model.h5f', overwrite=True)
+  agent.save_weights(datetime.datetime.now().strftime(MODEL_DIR + '/%Y%m%d-%H%M.h5f'))
+  agent.save_weights(MODEL_DIR + '/model.h5f', overwrite=True)
 
 if args.mode == 'test':
-  dqn.load_weights('./models/model.h5f')
+  dqn.load_weights(MODEL_DIR + '/model.h5f')
   dqn.test(env, nb_episodes=10, visualize=False)
 else:
   if args.mode == 'continue':
-    dqn.load_weights('./models/model.h5f')
+    dqn.load_weights(MODEL_DIR + '/model.h5f')
   fit_and_save(dqn)
   dqn.test(env, nb_episodes=20, visualize=False)

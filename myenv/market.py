@@ -3,8 +3,8 @@ import numpy as np
 import gym.spaces as spaces
 import pandas as pd
 
-X_NPZ = './feed/x.npz'
-Y_NPZ = './feed/y.npz'
+X_NPZ = './feed/x_val.npz'
+Y_NPZ = './feed/y_val.npz'
 INVALID_CHOICE_REWARD = -10
 NO_TRADE_REWARD = -1000
 NOOP_REWARD = 0
