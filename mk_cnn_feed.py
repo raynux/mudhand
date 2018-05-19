@@ -3,9 +3,10 @@ import pandas as pd
 import talib
 from scipy.stats import zscore
 
+SEQ_LEN = 120
+
 df = pd.read_csv('./feed/orig.csv', index_col='Timestamp', usecols=['Timestamp', 'Open', 'High', 'Low', 'Close'])
 # df = df[370000:375000]
-df = df[20000:]
 
 df['bbu5'],  df['sma5'],  df['bbl5']  = talib.BBANDS(df['Close'], timeperiod=5)
 df['bbu15'], df['sma15'], df['bbl15'] = talib.BBANDS(df['Close'], timeperiod=15)
@@ -47,15 +48,17 @@ for i in range(len(closes) - FUTURE_RANGE):
       y[i] = 2
       st['sell'] += 1
       break
+print(st)
 
-np.savetxt('./feed/y_cls.csv', y, fmt='%i', delimiter=',')
-np.savez('./feed/y_cls.npz', y)
+y = y[:-SEQ_LEN]
 
-y = df['Close'].values
-np.savetxt('./feed/y_val.csv', y, fmt='%0.8f', delimiter=',')
-np.savez('./feed/y_val.npz', y)
+np.savetxt('./feed/cnn/y.csv', y, fmt='%i', delimiter=',')
+np.savez('./feed/cnn/y.npz', y)
 
-x = np.array([
+# 
+# Making X
+# 
+x_raw = np.array([
   zscore(df['closeDiff'].values),
   zscore(df['highDiff'].values),
   zscore(df['lowDiff'].values),
@@ -72,6 +75,13 @@ x = np.array([
   df['rsi15'].values,
   df['rsi60'].values,
 ])
-x = x.transpose()
-np.savetxt('./feed/x.csv', x, fmt='%0.8f', delimiter=',')
-np.savez('./feed/x.npz', x)
+x_raw = x_raw.transpose()
+
+x = np.zeros((x_raw.shape[0] - SEQ_LEN, SEQ_LEN, x_raw.shape[1]))
+for i in range(x_raw.shape[0] - SEQ_LEN):
+  x[i] = x_raw[i:i+SEQ_LEN]
+
+np.savez('./feed/cnn/x.npz', x)
+
+print(y.shape)
+print(x.shape)
