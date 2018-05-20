@@ -17,7 +17,7 @@ async function main() {
   await Ohlc.sync()
 
   const cursor = moment()
-  const origin = moment().subtract(100, 'days')
+  const origin = moment().subtract(1, 'days')
 
   while(cursor.isAfter(origin)) {
     try {
@@ -30,7 +30,7 @@ async function main() {
       })
 
       const stat = _.get(resp, 'data.allowance')
-      stat.cursor = cursor.clone().format('YYYY-MM-DD')
+      stat.cursor = cursor.format('YYYY-MM-DD')
 
       const recs = _.get(resp, 'data.result[60]')
       if(!recs) { break }
@@ -45,7 +45,6 @@ async function main() {
           high: rec[2],
           low: rec[3],
           close: rec[4],
-          volume: rec[5],
         }
 
         await Ohlc.upsert(data)

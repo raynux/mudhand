@@ -11,3 +11,5 @@ dist/
 *.db-journal
 key.json
 yarn-error.log
+*.pyc
+*.h5f
