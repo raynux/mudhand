@@ -37,9 +37,9 @@ print(env.observation_space)
 # Next, we build a very simple model.
 model = Sequential()
 model.add(Flatten(input_shape=(1,) + env.observation_space.shape))
-model.add(Dense(64, activation='relu'))
-model.add(Dense(64, activation='relu'))
-model.add(Dense(64, activation='relu'))
+model.add(Dense(256, activation='relu'))
+model.add(Dense(256, activation='relu'))
+model.add(Dense(256, activation='relu'))
 model.add(Dense(nb_actions, activation='tanh'))
 # print(model.summary())
 
@@ -61,9 +61,11 @@ def fit_and_save(agent):
 
 if args.mode == 'test':
   dqn.load_weights(MODEL_DIR + '/model.h5f')
-  dqn.test(env, nb_episodes=10, visualize=False)
+  dqn.test(env, nb_episodes=100, visualize=False)
 else:
   if args.mode == 'continue':
     dqn.load_weights(MODEL_DIR + '/model.h5f')
-  fit_and_save(dqn)
-  dqn.test(env, nb_episodes=20, visualize=False)
+  
+  while True:
+    fit_and_save(dqn)
+    dqn.test(env, nb_episodes=10, visualize=False)

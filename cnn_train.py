@@ -56,11 +56,11 @@ model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 
 
 if args.mode == 'continue':
-  model.load(MODEL_DIR + '/model.h5f')
+  model.load(MODEL_DIR + '/model.h5')
 
 model.fit(x, y, validation_split=0.3, epochs=EPOCHS, callbacks=[
   EarlyStopping(monitor='val_loss', patience=5),
   # TensorBoard(log_dir='./logs', histogram_freq=0)
 ])
 model.save(datetime.datetime.now().strftime(MODEL_DIR + '/%Y%m%d-%H%M.h5'))
-model.save(MODEL_DIR + '/model.h5f', overwrite=True)
+model.save(MODEL_DIR + '/model.h5', overwrite=True)
