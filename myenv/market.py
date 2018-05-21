@@ -5,14 +5,17 @@ import pandas as pd
 
 X_NPZ = './feed/dqn/x.npz'
 Y_NPZ = './feed/dqn/y.npz'
-INVALID_CHOICE_REWARD = -1000
-NO_TRADE_REWARD = -1000
+
+SPREAD = 0.02
+INVALID_CHOICE_REWARD = -100000
+NO_TRADE_REWARD = -10000
 NOOP_REWARD = 0
 DECISION_REWARD = 0
 
 class Position():
   POS_BOOL_INDEX = 0
   POS_PRICE_INDEX = 1
+  STEP_NO_INDEX = 2
 
   NO_POSITION = 0
   LONG_POSITION = 1
@@ -24,39 +27,45 @@ class Position():
 
   def buy(self, price):
     if self.has_position():
-      return INVALID_CHOICE_REWARD  # invalid operation
+      return None  # invalid operation
 
     self.set_position(self.LONG_POSITION, price)
     return DECISION_REWARD
 
   def sell(self, price):
     if self.has_position():
-      return INVALID_CHOICE_REWARD  # invalid operation
+      return None  # invalid operation
 
     self.set_position(self.SHORT_POSITION, price)
     return DECISION_REWARD
 
   def close(self, price):
     if self.has_long_position():
-      reward = self.position_price() - price
+      reward = self.position_price() - price - self.spread_cost()
       reward += DECISION_REWARD
       # print('BUY : ' + str(reward) + ' : ' + str(self.position_price()) + ' : ' + str(price))
       self.set_position(self.NO_POSITION)
       return reward
     elif self.has_short_position():
-      reward = price - self.position_price()
+      reward = self.position_price() - price - self.spread_cost()
       reward += DECISION_REWARD
       # print('SELL : ' + str(reward) + ' : ' + str(self.position_price()) + ' : ' + str(price))
       self.set_position(self.NO_POSITION)
       return reward
 
-    return INVALID_CHOICE_REWARD  # invalid operation
+    return None  # invalid operation
 
   def reset(self):
     self.state = np.zeros(self.shape)
 
+  def inc_step_no(self):
+    self.state[0][self.STEP_NO_INDEX] += 1
+
   def position_price(self):
     return int(self.state[0][self.POS_PRICE_INDEX])
+
+  def spread_cost(self):
+    return (self.position_price() * SPREAD)
 
   def set_position(self, pos_type, price=0):
     self.state[0][self.POS_BOOL_INDEX] = pos_type
@@ -102,16 +111,26 @@ class Market(gym.Env):
     return self._observe()
 
   def step(self, action):
+    self.position.inc_step_no()
+
     current_price = self.current_price()
     reward = NOOP_REWARD
 
     if action == self.BUY:
       reward = self.position.buy(current_price)
+      if reward == None:
+        reward = INVALID_CHOICE_REWARD
+        self.done = True
     elif action == self.SELL:
       reward = self.position.sell(current_price)
+      if reward == None:
+        reward = INVALID_CHOICE_REWARD
+        self.done = True
     elif action == self.CLOSE:
       reward = self.position.close(current_price)
-      # self.done = True
+      self.done = True
+      if reward == None:
+        reward = INVALID_CHOICE_REWARD
     # else:   # STAY
     #   print('STAY [ ' + str(self.seq_index) + ' ] : ' + str(current_price))
 

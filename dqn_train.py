@@ -9,6 +9,7 @@ from keras.layers import Dense, Flatten
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping, TensorBoard
 
+import rl.callbacks
 from rl.agents.dqn import DQNAgent
 from rl.policy import BoltzmannQPolicy
 from rl.memory import SequentialMemory
@@ -25,6 +26,23 @@ WINDOW_LENGTH = 1
 ENV_NAME = 'Market-v0'
 MODEL_DIR = './dqn_model'
 
+class EpisodeLogger(rl.callbacks.Callback):
+  def __init__(self):
+      self.observations = {}
+      self.rewards = {}
+      self.actions = {}
+
+  def on_episode_begin(self, episode, logs):
+      self.observations[episode] = []
+      self.rewards[episode] = []
+      self.actions[episode] = []
+
+  def on_step_end(self, step, logs):
+      episode = logs['episode']
+      self.observations[episode].append(logs['observation'])
+      self.rewards[episode].append(logs['reward'])
+      self.actions[episode].append(logs['action'])
+
 
 # Get the environment and extract the number of actions.
 env = gym.make(ENV_NAME)
@@ -32,14 +50,12 @@ env = gym.make(ENV_NAME)
 # env.seed(123)
 nb_actions = env.action_space.n
 
-print(env.observation_space)
-
 # Next, we build a very simple model.
 model = Sequential()
 model.add(Flatten(input_shape=(1,) + env.observation_space.shape))
-model.add(Dense(256, activation='relu'))
-model.add(Dense(256, activation='relu'))
-model.add(Dense(256, activation='relu'))
+model.add(Dense(128, activation='relu'))
+model.add(Dense(128, activation='relu'))
+model.add(Dense(128, activation='relu'))
 model.add(Dense(nb_actions, activation='tanh'))
 # print(model.summary())
 
@@ -60,8 +76,11 @@ def fit_and_save(agent):
   agent.save_weights(MODEL_DIR + '/model.h5f', overwrite=True)
 
 if args.mode == 'test':
+  ep_log = EpisodeLogger()
   dqn.load_weights(MODEL_DIR + '/model.h5f')
-  dqn.test(env, nb_episodes=100, visualize=False)
+  dqn.test(env, nb_episodes=10, visualize=False, callbacks=[ep_log])
+  print(ep_log.actions.values())
+
 else:
   if args.mode == 'continue':
     dqn.load_weights(MODEL_DIR + '/model.h5f')
