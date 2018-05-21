@@ -3,10 +3,10 @@ import pandas as pd
 import talib
 from scipy.stats import zscore
 
-SEQ_LEN = 120
-
 df = pd.read_csv('./feed/orig.csv', index_col='Timestamp', usecols=['Timestamp', 'Open', 'High', 'Low', 'Close'])
 # df = df[370000:375000]
+df = df[200000:]
+# df = df[0:80]
 
 df['bbu5'],  df['sma5'],  df['bbl5']  = talib.BBANDS(df['Close'], timeperiod=5)
 df['bbu15'], df['sma15'], df['bbl15'] = talib.BBANDS(df['Close'], timeperiod=15)
@@ -27,37 +27,39 @@ df['sma60Diff'] = df['Close'] / df['sma60']
 df['bbl5Diff']  = df['Close'] / df['bbl5']
 df['bbl15Diff'] = df['Close'] / df['bbl15']
 df['bbl60Diff'] = df['Close'] / df['bbl60']
-df = df[60:]
+df = df[60:] # MAX_TIME_PERIOD
 
-FUTURE_RANGE = 10
-THRESHOLD = 0.03
+
+
+# 
+# Making Y
+# 
+FUTURE_RANGE = 5
+THRESHOLD = 0.003
+
 st = {'buy': 0, 'sell': 0}
-y = np.zeros(df.shape[0], dtype=np.int8)
+
 closes = df['Close'].values
-for i in range(len(closes) - FUTURE_RANGE):
-  base_price = closes[i]
-  diff = 0
+futures = np.ones(len(df), dtype=np.int8)
+
+for i in range(len(df) - FUTURE_RANGE):
   for j in range(1, FUTURE_RANGE):
-    diff += (closes[i+j] / base_price) - 1
-    # print(diff)
+    diff = (closes[i+j] / closes[i]) - 1
     if diff >= THRESHOLD:
-      y[i] = 1
+      futures[i] = 0
       st['buy'] += 1
       break
     if diff <= -THRESHOLD:
-      y[i] = 2
+      futures[i] = 2
       st['sell'] += 1
       break
+
 print(st)
 
-y = y[:-SEQ_LEN]
-
-np.savetxt('./feed/cnn/y.csv', y, fmt='%i', delimiter=',')
-np.savez('./feed/cnn/y.npz', y)
-
 # 
-# Making X
+# Making X, Y
 # 
+SEQ_LEN = 60
 x_raw = np.array([
   zscore(df['closeDiff'].values),
   zscore(df['highDiff'].values),
@@ -77,11 +79,21 @@ x_raw = np.array([
 ])
 x_raw = x_raw.transpose()
 
-x = np.zeros((x_raw.shape[0] - SEQ_LEN, SEQ_LEN, x_raw.shape[1]))
-for i in range(x_raw.shape[0] - SEQ_LEN):
+x = np.zeros((x_raw.shape[0] - SEQ_LEN, SEQ_LEN, x_raw.shape[1]), dtype=np.float32)
+y = np.zeros(x.shape[0], dtype=np.int8)
+for i in range(x.shape[0]):
   x[i] = x_raw[i:i+SEQ_LEN]
-
-np.savez('./feed/cnn/x.npz', x)
+  y[i] = futures[i+SEQ_LEN]
 
 print(y.shape)
 print(x.shape)
+
+# Shuffle
+p = np.random.permutation(len(x))
+x = x[p]
+y = y[p]
+
+np.savez('./feed/cnn/x.npz', x)
+
+np.savetxt('./feed/cnn/y.csv', y, fmt='%i', delimiter=',')
+np.savez('./feed/cnn/y.npz', y)
