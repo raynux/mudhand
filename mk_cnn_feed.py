@@ -5,7 +5,7 @@ from scipy.stats import zscore
 
 df = pd.read_csv('./feed/orig.csv', index_col='Timestamp', usecols=['Timestamp', 'Open', 'High', 'Low', 'Close'])
 # df = df[370000:375000]
-df = df[200000:]
+# df = df[200000:]
 # df = df[0:80]
 
 df['bbu5'],  df['sma5'],  df['bbl5']  = talib.BBANDS(df['Close'], timeperiod=5)
@@ -54,46 +54,75 @@ for i in range(len(df) - FUTURE_RANGE):
       st['sell'] += 1
       break
 
+print(len(df))
 print(st)
 
 # 
 # Making X, Y
 # 
 SEQ_LEN = 60
-x_raw = np.array([
+x_raw1 = np.array([
   zscore(df['closeDiff'].values),
   zscore(df['highDiff'].values),
   zscore(df['lowDiff'].values),
+]).transpose()
+
+x_raw2 = np.array([
   zscore(df['bbu5Diff'].values),
   zscore(df['bbu15Diff'].values),
   zscore(df['bbu60Diff'].values),
+]).transpose()
+
+x_raw3 = np.array([
   zscore(df['sma5Diff'].values),
   zscore(df['sma15Diff'].values),
   zscore(df['sma60Diff'].values),
+]).transpose()
+
+x_raw4 = np.array([
   zscore(df['bbl5Diff'].values),
   zscore(df['bbl15Diff'].values),
   zscore(df['bbl60Diff'].values),
+]).transpose()
+
+x_raw5 = np.array([
   df['rsi5'].values,
   df['rsi15'].values,
   df['rsi60'].values,
-])
-x_raw = x_raw.transpose()
+]).transpose()
 
-x = np.zeros((x_raw.shape[0] - SEQ_LEN, SEQ_LEN, x_raw.shape[1]), dtype=np.float32)
-y = np.zeros(x.shape[0], dtype=np.int8)
-for i in range(x.shape[0]):
-  x[i] = x_raw[i:i+SEQ_LEN]
+
+x1 = np.zeros((x_raw1.shape[0] - SEQ_LEN, SEQ_LEN, x_raw1.shape[1]), dtype=np.float32)
+x2 = np.zeros((x_raw2.shape[0] - SEQ_LEN, SEQ_LEN, x_raw2.shape[1]), dtype=np.float32)
+x3 = np.zeros((x_raw3.shape[0] - SEQ_LEN, SEQ_LEN, x_raw3.shape[1]), dtype=np.float32)
+x4 = np.zeros((x_raw4.shape[0] - SEQ_LEN, SEQ_LEN, x_raw4.shape[1]), dtype=np.float32)
+x5 = np.zeros((x_raw5.shape[0] - SEQ_LEN, SEQ_LEN, x_raw5.shape[1]), dtype=np.float32)
+
+
+y = np.zeros(x1.shape[0], dtype=np.int8)
+for i in range(x1.shape[0]):
+  x1[i] = x_raw1[i:i+SEQ_LEN]
+  x2[i] = x_raw2[i:i+SEQ_LEN]
+  x3[i] = x_raw3[i:i+SEQ_LEN]
+  x4[i] = x_raw4[i:i+SEQ_LEN]
+  x5[i] = x_raw5[i:i+SEQ_LEN]
   y[i] = futures[i+SEQ_LEN]
 
 print(y.shape)
-print(x.shape)
+print(x1.shape)
+print(x2.shape)
+print(x3.shape)
+print(x4.shape)
+print(x5.shape)
 
 # Shuffle
-p = np.random.permutation(len(x))
-x = x[p]
+p = np.random.permutation(len(y))
 y = y[p]
+x1 = x1[p]
+x2 = x2[p]
+x3 = x3[p]
+x4 = x4[p]
+x5 = x5[p]
 
-np.savez('./feed/cnn/x.npz', x)
-
+np.savez('./feed/cnn/data.npz', x1=x1, x2=x2, x3=x3, x4=x4, x5=x5, y=y)
 np.savetxt('./feed/cnn/y.csv', y, fmt='%i', delimiter=',')
-np.savez('./feed/cnn/y.npz', y)
