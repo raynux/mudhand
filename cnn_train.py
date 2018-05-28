@@ -21,12 +21,13 @@ MODEL_DIR = './cnn_model'
 feed = np.load('./feed/cnn/data.npz')
 
 y = to_categorical(feed['y'], num_classes=3)
-x1 = feed['x1']
-x2 = feed['x2']
-x3 = feed['x3']
-x4 = feed['x4']
-x5 = feed['x5']
-x = [x1, x2, x3, x4, x5]
+x = feed['x']
+# x1 = feed['x1']
+# x2 = feed['x2']
+# x3 = feed['x3']
+# x4 = feed['x4']
+# x5 = feed['x5']
+# x = [x1, x2, x3, x4, x5]
 
 #
 # Building Model
@@ -50,21 +51,19 @@ def build_branch(x):
 if args.mode == 'continue':
   model = load_model(MODEL_DIR + '/model.h5')
 else:
-  x1_in, x1_layer = build_branch(x1)
-  x2_in, x2_layer = build_branch(x2)
-  x3_in, x3_layer = build_branch(x3)
-  x4_in, x4_layer = build_branch(x4)
-  x5_in, x5_layer = build_branch(x5)
+  x_in, x_layer = build_branch(x)
 
-  branches_in = [x1_in, x2_in, x3_in, x4_in, x5_in]
-  branches = [x1_layer, x2_layer, x3_layer, x4_layer, x5_layer]
+  # branches_in = [x1_in, x2_in, x3_in, x4_in, x5_in]
+  # branches = [x1_layer, x2_layer, x3_layer, x4_layer, x5_layer]
 
-  merged = concatenate(branches)
-  merged = Dropout(0.3)(merged)
-  merged = Dense(units=16, activation='relu')(merged)
-  prediction = Dense(units=3, activation='softmax')(merged)
+  # merged = concatenate(branches)
+  # merged = Dropout(0.3)(merged)
+  # merged = Dense(units=16, activation='relu')(merged)
+  # prediction = Dense(units=3, activation='softmax')(merged)
+  x_layer = Dropout(0.3)(x_layer)
+  prediction = Dense(units=3, activation='softmax')(x_layer)
 
-  model = Model(inputs=branches_in, outputs=prediction)
+  model = Model(inputs=x_in, outputs=prediction)
   model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
 
 print(model.summary())
